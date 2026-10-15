@@ -1,0 +1,2767 @@
+<!DOCTYPE html>
+<!-- OGDC PPA CamScanner Pro PDF v4.4 - PWA Installable & True Blank Edition -->
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OGDC PPA CamScanner Pro</title>
+  <!-- PWA & Mobile Web App Capabilities -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OGDC Scanner">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/192/scanner.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://img.icons8.com/fluency/192/scanner.png">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- FontAwesome & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f1f5f9;
+      -webkit-tap-highlight-color: transparent;
+      transition: background-color 0.3s;
+      overscroll-behavior-y: none;
+    }
+    html.dark body { background-color: #0b1120; }
+    
+    /* Touch optimization */
+    main { -webkit-overflow-scrolling: touch; transform: translateZ(0); }
+    
+    /* View Transitions */
+    .view-section { display: none; animation: fadeIn 0.25s ease-out; }
+    .view-section.active { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom Glass Input */
+    .glass-input {
+      background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; color: #0f172a;
+      padding: 12px 16px; width: 100%; transition: all 0.2s; outline: none; appearance: none;
+      text-transform: uppercase; font-weight: 500;
+    }
+    html.dark .glass-input {
+      background: #1e293b; border-color: #334155; color: #f8fafc;
+    }
+    .glass-input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); }
+    html.dark .glass-input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
+
+    /* A4 Document Preview Card */
+    .a4-sheet-card {
+      aspect-ratio: 210 / 297;
+      background: #ffffff;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Custom Scrollbar */
+    .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    html.dark .custom-scroll::-webkit-scrollbar-thumb { background: #475569; }
+
+    /* Canvas Editor Touch Action */
+    #crop-canvas { touch-action: none; user-select: none; }
+    
+    /* Loupe / Magnifier Circle */
+    #crop-loupe {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 9999px;
+      border: 3px solid #22c55e;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+      pointer-events: none;
+      display: none;
+      overflow: hidden;
+      background: #000;
+      z-index: 999;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Filter button active indicator */
+    .filter-btn.active {
+      background: #10b981 !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+  </style>
+</head>
+<body class="text-slate-800 dark:text-slate-100 antialiased pb-24">
+
+  <!-- TOP HEADER -->
+  <header class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-sm border-b border-slate-200/80 dark:border-slate-800 fixed top-0 left-0 right-0 z-40 transition-colors">
+    <div class="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="bg-gradient-to-tr from-emerald-600 to-teal-500 text-white p-2.5 rounded-xl shadow-md shadow-emerald-500/20">
+          <i class="fa-solid fa-camera-viewfinder text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-base tracking-tight text-slate-800 dark:text-white uppercase flex items-center gap-1.5">
+            OGDC PPA <span class="text-emerald-600 dark:text-emerald-400 font-black">SCANNER</span>
+          </h1>
+          <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">CamScanner Pro Edition</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- OpenCV Status Badge -->
+        <span id="cv-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-circle-notch fa-spin text-[8px]"></i> CV
+        </span>
+        <!-- PWA Install Button -->
+        <button id="pwa-install-btn" onclick="triggerPwaInstall()" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-download text-[9px]"></i> <span>PASANG</span>
+        </button>
+        <!-- Dark Mode Toggle -->
+        <button id="theme-toggle" class="text-slate-500 dark:text-slate-400 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle Theme">
+          <i id="theme-toggle-dark-icon" class="fa-solid fa-moon text-lg hidden"></i>
+          <i id="theme-toggle-light-icon" class="fa-solid fa-sun text-lg hidden"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="max-w-md mx-auto px-4 pt-20">
+    
+    <!-- ============================================== -->
+    <!-- VIEW 1: FORM INPUT DETAIL TRANSAKSI            -->
+    <!-- ============================================== -->
+    <section id="view-form" class="view-section active">
+      <div class="bg-white dark:bg-slate-800/95 rounded-3xl p-6 shadow-sm border border-slate-200/80 dark:border-slate-700/80 transition-colors">
+        <div class="mb-5 flex items-start justify-between">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">Langkah 1 dari 2</span>
+            <h2 class="text-xl font-bold text-slate-800 dark:text-white uppercase mt-2">Detail Transaksi</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lengkapi data untuk penamaan file dan pencatatan riwayat.</p>
+          </div>
+          <button type="button" onclick="clearMetadataForm(true)" title="Kosongkan Semua Kolom" class="text-slate-400 hover:text-rose-500 text-xs font-bold uppercase px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-800 transition-all active:scale-95 flex items-center gap-1.5 shadow-sm mt-1">
+            <i class="fa-solid fa-eraser text-xs"></i> <span>Reset</span>
+          </button>
+        </div>
+
+        <form id="metadata-form" autocomplete="off" class="space-y-4">
+          <!-- Tanggal -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Tanggal Transaksi</label>
+            <div class="relative">
+              <input type="text" id="input-tanggal" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'" required class="glass-input pr-10" placeholder="" autocomplete="off">
+              <i class="fa-solid fa-calendar-days absolute right-4 top-4 text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Shift -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Shift</label>
+            <div class="relative">
+              <select id="input-shift" required class="glass-input pr-10">
+                <option value="" selected disabled hidden></option>
+                <option value="1">SHIFT 1</option>
+                <option value="2">SHIFT 2</option>
+              </select>
+              <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Jenis Transaksi -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Jenis Transaksi</label>
+            <div class="relative">
+              <select id="input-jenis" required class="glass-input pr-10">
+                <option value="" selected disabled hidden></option>
+                <option value="Penerimaan">PENERIMAAN</option>
+                <option value="Pengeluaran">PENGELUARAN</option>
+                <option value="Pengembalian">PENGEMBALIAN</option>
+              </select>
+              <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Vendor -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Vendor</label>
+            <div class="relative">
+              <select id="input-vendor" required class="glass-input pr-10">
+                <option value="" selected disabled hidden></option>
+                <option value="PPN">PPN</option>
+                <option value="SEFAS">SEFAS</option>
+                <option value="UT">UT</option>
+                <option value="EON">EON</option>
+                <option value="SWI">SWI</option>
+                <option value="SANY">SANY</option>
+                <option value="Other">OTHER</option>
+                <option value="-">-</option>
+              </select>
+              <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Berkas -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Berkas</label>
+            <div class="relative">
+              <select id="input-berkas" required class="glass-input pr-10">
+                <option value="" selected disabled hidden></option>
+                <option value="Matrial Request">MATRIAL REQUEST</option>
+                <option value="BA PENERIMAAN">BA PENERIMAAN</option>
+                <option value="BA PENGEMBALIAN">BA PENGEMBALIAN</option>
+                <option value="DO">DO</option>
+                <option value="DN">DN</option>
+                <option value="OTHER">OTHER</option>
+              </select>
+              <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Nomer BA -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Nomer BA</label>
+            <input type="text" id="input-nomer-ba" list="ba-history-list" required class="glass-input" placeholder="" autocomplete="off">
+            <datalist id="ba-history-list"></datalist>
+          </div>
+
+          <!-- Tombol Lanjut ke Scanner -->
+          <div class="pt-4">
+            <button type="button" onclick="goToCamera()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold py-4 px-4 rounded-2xl shadow-lg shadow-emerald-600/25 transition-all flex justify-center items-center gap-2.5 uppercase tracking-wider text-sm">
+              <span>Buka CamScanner</span>
+              <i class="fa-solid fa-camera"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VIEW 2: CAMSCANNER WORKSPACE                   -->
+    <!-- ============================================== -->
+    <section id="view-camera" class="view-section">
+      <div class="bg-white dark:bg-slate-800/95 rounded-3xl p-5 shadow-sm border border-slate-200/80 dark:border-slate-700/80 transition-colors">
+        
+        <!-- Header Workspace -->
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-700/70">
+          <button onclick="goToForm()" class="bg-slate-100 dark:bg-slate-700 p-2.5 rounded-xl text-slate-600 dark:text-slate-300 active:scale-90 transition-transform">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div class="text-center">
+            <h2 class="text-base font-bold text-slate-800 dark:text-white uppercase">Dokumen Scan</h2>
+            <p id="page-count-subtitle" class="text-[11px] text-slate-400 font-semibold uppercase">0 Halaman Siap</p>
+          </div>
+          <button onclick="openHelpModal()" class="text-slate-400 hover:text-emerald-500 p-2 rounded-xl text-sm" title="Panduan">
+            <i class="fa-solid fa-circle-question"></i>
+          </button>
+        </div>
+
+        <!-- Tombol Tambah Halaman: Kamera & Galeri -->
+        <div class="grid grid-cols-3 gap-2.5 mb-5">
+          <!-- Ambil Kamera -->
+          <label for="camera-input" class="cursor-pointer bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 border-2 border-dashed border-emerald-300 dark:border-emerald-800/60 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
+            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/30">
+              <i class="fa-solid fa-camera text-base"></i>
+            </div>
+            <span class="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">Kamera</span>
+            <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" onchange="onSourceFilePicked(event)">
+          </label>
+
+          <!-- Pilih Galeri -->
+          <label for="gallery-input" class="cursor-pointer bg-slate-50 hover:bg-slate-100 dark:bg-slate-700/30 dark:hover:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
+            <div class="w-10 h-10 rounded-full bg-slate-700 dark:bg-slate-600 text-white flex items-center justify-center shadow-sm">
+              <i class="fa-solid fa-images text-base"></i>
+            </div>
+            <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Galeri</span>
+            <input type="file" id="gallery-input" accept="image/*" class="hidden" onchange="onSourceFilePicked(event)">
+          </label>
+
+          <!-- Upload PDF Langsung -->
+          <label for="pdf-input" class="cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border-2 border-dashed border-blue-200 dark:border-blue-800/60 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
+            <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20">
+              <i class="fa-solid fa-file-pdf text-base"></i>
+            </div>
+            <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">File PDF</span>
+            <input type="file" id="pdf-input" accept="application/pdf" class="hidden" onchange="onPdfFilePicked(event)">
+          </label>
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="empty-scan-state" class="text-center py-12 px-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl mb-5">
+          <div class="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-400 mx-auto flex items-center justify-center mb-3">
+            <i class="fa-solid fa-camera-rotate text-2xl"></i>
+          </div>
+          <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase">Belum Ada Halaman Dokumen</h3>
+          <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Tekan tombol <span class="text-emerald-600 dark:text-emerald-400 font-bold">Kamera</span> untuk memotret. Sistem akan otomatis mendeteksi tepi kertas, menghapus bayangan tangan, dan mempertajam teks.</p>
+        </div>
+
+        <!-- Scanned Pages List Container -->
+        <div id="pages-container" class="space-y-4 mb-5 hidden">
+          <!-- Rendered dynamically by renderPagesList() -->
+        </div>
+
+        <!-- Direct PDF Preview Container -->
+        <div id="pdf-direct-container" class="hidden mb-5 p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-center relative">
+          <i class="fa-solid fa-file-pdf text-4xl text-blue-600 mb-2"></i>
+          <p class="text-xs font-bold text-slate-800 dark:text-white uppercase">Satu Berkas PDF Siap Diupload</p>
+          <p id="pdf-file-name" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">dokumen.pdf</p>
+          <button onclick="removePdfDirect()" class="absolute top-3 right-3 text-red-500 hover:text-red-700 p-1.5 rounded-lg active:scale-90">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+
+        <!-- Tombol Buat PDF & Simpan -->
+        <button id="btn-submit-scan" onclick="submitCompleteTransaction()" disabled class="w-full bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold py-4 px-4 rounded-2xl transition-all flex justify-center items-center gap-2 uppercase tracking-wider text-sm cursor-not-allowed">
+          <i class="fa-solid fa-file-circle-check"></i>
+          <span>Buat & Simpan PDF</span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- VIEW 3: RIWAYAT TRANSAKSI                      -->
+    <!-- ============================================== -->
+    <section id="view-history" class="view-section">
+      <!-- Search & Refresh -->
+      <div class="flex flex-col gap-3 mb-5">
+        <div class="flex items-center gap-2.5">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-search absolute left-4 top-4 text-slate-400"></i>
+            <input type="text" id="search-input" onkeyup="filterHistory()" placeholder="CARI NOMER BA, VENDOR, DLL..." class="glass-input pl-12 h-[48px] text-xs">
+          </div>
+          <button onclick="forceRefreshHistory()" class="bg-white dark:bg-slate-800 w-[48px] h-[48px] shrink-0 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-emerald-600 active:scale-90 flex items-center justify-center transition-all shadow-sm">
+            <i class="fa-solid fa-rotate-right text-base" id="refresh-icon"></i>
+          </button>
+        </div>
+        
+        <!-- Filter Tanggal -->
+        <div class="flex items-center gap-2.5">
+          <div class="relative flex-1">
+            <input type="date" id="filter-date" onchange="filterHistory()" class="glass-input h-[44px] text-xs">
+          </div>
+          <button onclick="clearDateFilter()" class="bg-white dark:bg-slate-800 px-4 h-[44px] shrink-0 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-500 text-xs font-bold uppercase tracking-wider hover:text-emerald-600 transition-colors shadow-sm">RESET</button>
+        </div>
+      </div>
+
+      <!-- History Cards Container -->
+      <div id="history-list" class="space-y-3.5"></div>
+      
+      <!-- Skeleton Loading -->
+      <div id="history-skeleton" class="space-y-3 hidden">
+        <div class="bg-slate-200 dark:bg-slate-800 animate-pulse h-36 rounded-2xl"></div>
+        <div class="bg-slate-200 dark:bg-slate-800 animate-pulse h-36 rounded-2xl"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- MODAL 1: CAMSCANNER 4-CORNER PERSPECTIVE CROP  -->
+  <!-- ============================================== -->
+  <div id="crop-modal" class="fixed inset-0 bg-black/95 z-50 flex-col justify-between hidden select-none">
+    
+    <!-- Top Crop Header -->
+    <div class="p-4 flex items-center justify-between text-white bg-slate-950/80 backdrop-blur-sm z-20">
+      <button onclick="cancelCrop()" class="text-slate-300 hover:text-white px-3 py-1.5 rounded-lg active:scale-90 text-sm font-semibold uppercase flex items-center gap-1.5">
+        <i class="fa-solid fa-xmark"></i> Batal
+      </button>
+      <div class="text-center">
+        <h3 class="font-extrabold uppercase text-sm tracking-wide">Sesuaikan Sudut</h3>
+        <p class="text-[10px] text-emerald-400 font-semibold uppercase">Tarik 4 Sudut Kertas</p>
+      </div>
+      <button onclick="applyCropAndWarp()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-emerald-600/40">
+        <span>Lanjut</span> <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+
+    <!-- Center Crop Canvas Area -->
+    <div id="crop-stage" class="flex-1 relative overflow-hidden flex items-center justify-center p-2">
+      <canvas id="crop-canvas" class="max-w-full max-h-full block shadow-2xl rounded-sm"></canvas>
+      <!-- Circular Loupe Magnifier -->
+      <canvas id="crop-loupe" width="160" height="160"></canvas>
+    </div>
+
+    <!-- Bottom Crop Toolbar -->
+    <div class="p-3 bg-slate-950/90 backdrop-blur-sm flex items-center justify-around z-20 border-t border-slate-800">
+      <button onclick="rotateCropImage(-90)" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
+        <i class="fa-solid fa-rotate-left text-base"></i>
+        <span class="text-[9px] font-bold uppercase">Putar Kiri</span>
+      </button>
+      <button onclick="insetCropMargin(0.02)" class="flex flex-col items-center gap-1 text-amber-400 hover:text-amber-300 active:scale-90 transition-transform">
+        <i class="fa-solid fa-crop text-base"></i>
+        <span class="text-[9px] font-bold uppercase">Kikis Meja</span>
+      </button>
+      <button onclick="autoDetectDocumentCorners()" class="flex flex-col items-center gap-1 text-emerald-400 hover:text-emerald-300 active:scale-90 transition-transform">
+        <i class="fa-solid fa-wand-magic-sparkles text-base"></i>
+        <span class="text-[9px] font-bold uppercase">Auto Deteksi</span>
+      </button>
+      <button onclick="resetCropToFull()" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
+        <i class="fa-solid fa-expand text-base"></i>
+        <span class="text-[9px] font-bold uppercase">Penuh</span>
+      </button>
+      <button onclick="rotateCropImage(90)" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
+        <i class="fa-solid fa-rotate-right text-base"></i>
+        <span class="text-[9px] font-bold uppercase">Putar Kanan</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL 2: CAMSCANNER MAGIC FILTER & ENHANCE     -->
+  <!-- ============================================== -->
+  <div id="filter-modal" class="fixed inset-0 bg-slate-950 z-50 flex-col justify-between hidden select-none">
+    
+    <!-- Top Filter Header -->
+    <div class="p-4 flex items-center justify-between text-white bg-slate-950/80 backdrop-blur-sm z-20">
+      <button onclick="reopenCropModal()" class="text-slate-300 hover:text-white px-3 py-1.5 rounded-lg active:scale-90 text-sm font-semibold uppercase flex items-center gap-1.5">
+        <i class="fa-solid fa-arrow-left"></i> Crop
+      </button>
+      <div class="text-center">
+        <h3 class="font-extrabold uppercase text-sm tracking-wide">Kualitas Dokumen</h3>
+        <p id="current-filter-name" class="text-[10px] text-emerald-400 font-semibold uppercase">Magic Color</p>
+      </div>
+      <button onclick="finalizePageScan()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-emerald-600/40">
+        <i class="fa-solid fa-check"></i> <span>Selesai</span>
+      </button>
+    </div>
+
+    <!-- Center Preview Area (Crisp PDF Look) -->
+    <div class="flex-1 relative overflow-hidden flex items-center justify-center p-3">
+      <div class="a4-sheet-card max-h-[68vh] w-auto max-w-full flex items-center justify-center overflow-hidden bg-white shadow-2xl">
+        <canvas id="filter-canvas" class="w-full h-full object-contain block bg-white"></canvas>
+      </div>
+    </div>
+
+    <!-- Bottom Filter Options Carousel (CamScanner Style) -->
+    <div class="p-4 bg-slate-900 border-t border-slate-800 z-20 flex flex-col gap-3">
+      
+      <!-- Filter Selector -->
+      <div class="flex items-center justify-between gap-1.5 overflow-x-auto pb-1 custom-scroll">
+        <button type="button" onclick="selectFilterMode('magic')" id="filter-btn-magic" class="filter-btn active flex-1 min-w-[70px] bg-slate-800 text-slate-300 py-2.5 px-2 rounded-xl text-center active:scale-95 transition-all">
+          <i class="fa-solid fa-wand-magic-sparkles text-sm mb-1 block"></i>
+          <span class="text-[9px] font-bold uppercase block tracking-wider">Magic</span>
+        </button>
+        <button type="button" onclick="selectFilterMode('color')" id="filter-btn-color" class="filter-btn flex-1 min-w-[70px] bg-slate-800 text-slate-300 py-2.5 px-2 rounded-xl text-center active:scale-95 transition-all">
+          <i class="fa-solid fa-palette text-sm mb-1 block"></i>
+          <span class="text-[9px] font-bold uppercase block tracking-wider">Cerah</span>
+        </button>
+        <button type="button" onclick="selectFilterMode('bw')" id="filter-btn-bw" class="filter-btn flex-1 min-w-[70px] bg-slate-800 text-slate-300 py-2.5 px-2 rounded-xl text-center active:scale-95 transition-all">
+          <i class="fa-solid fa-file-lines text-sm mb-1 block"></i>
+          <span class="text-[9px] font-bold uppercase block tracking-wider">B&W</span>
+        </button>
+        <button type="button" onclick="selectFilterMode('gray')" id="filter-btn-gray" class="filter-btn flex-1 min-w-[70px] bg-slate-800 text-slate-300 py-2.5 px-2 rounded-xl text-center active:scale-95 transition-all">
+          <i class="fa-solid fa-circle-half-stroke text-sm mb-1 block"></i>
+          <span class="text-[9px] font-bold uppercase block tracking-wider">Abu</span>
+        </button>
+        <button type="button" onclick="selectFilterMode('original')" id="filter-btn-original" class="filter-btn flex-1 min-w-[70px] bg-slate-800 text-slate-300 py-2.5 px-2 rounded-xl text-center active:scale-95 transition-all">
+          <i class="fa-solid fa-image text-sm mb-1 block"></i>
+          <span class="text-[9px] font-bold uppercase block tracking-wider">Asli</span>
+        </button>
+      </div>
+
+      <!-- Quick Actions in Filter Screen -->
+      <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
+        <button onclick="cleanResidualBorders()" class="text-amber-400 hover:text-amber-300 px-3 py-1 bg-slate-800/80 rounded-lg active:scale-95 text-[10px] font-bold uppercase flex items-center gap-1.5 border border-slate-700">
+          <i class="fa-solid fa-crop"></i> <span>Kikis Sisa Meja</span>
+        </button>
+        <button onclick="rotateFilterCanvas(90)" class="text-slate-300 hover:text-white px-3 py-1 bg-slate-800 rounded-lg active:scale-95 text-[10px] font-bold uppercase flex items-center gap-1.5 border border-slate-700">
+          <i class="fa-solid fa-rotate-right"></i> <span>Putar</span>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL EDIT DATA TRANSAKSI                      -->
+  <!-- ============================================== -->
+  <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex-col items-center justify-center hidden px-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scroll border border-slate-200 dark:border-slate-700">
+      <button onclick="closeEditModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white bg-slate-100 dark:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="mb-4">
+        <h2 class="text-base font-bold text-slate-800 dark:text-white uppercase"><i class="fa-solid fa-pen text-amber-500 mr-2"></i>Edit Data Transaksi</h2>
+        <p class="text-[11px] text-amber-600 dark:text-amber-400 mt-1 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl font-medium">
+          Perubahan ini hanya memperbarui data di sheet riwayat. Dokumen fisik PDF yang tersimpan tidak diubah.
+        </p>
+      </div>
+
+      <form id="edit-form" class="space-y-3">
+        <input type="hidden" id="edit-rowid">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase">Tanggal</label>
+          <input type="date" id="edit-tanggal" required class="glass-input !py-2.5 text-xs">
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase">Shift</label>
+            <select id="edit-shift" required class="glass-input !py-2.5 text-xs">
+              <option value="1">SHIFT 1</option>
+              <option value="2">SHIFT 2</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase">Jenis Transaksi</label>
+            <select id="edit-jenis" required class="glass-input !py-2.5 text-xs">
+              <option value="Penerimaan">PENERIMAAN</option>
+              <option value="Pengeluaran">PENGELUARAN</option>
+              <option value="Pengembalian">PENGEMBALIAN</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase">Vendor</label>
+          <select id="edit-vendor" required class="glass-input !py-2.5 text-xs">
+            <option value="PPN">PPN</option>
+            <option value="SEFAS">SEFAS</option>
+            <option value="UT">UT</option>
+            <option value="EON">EON</option>
+            <option value="SWI">SWI</option>
+            <option value="SANY">SANY</option>
+            <option value="Other">OTHER</option>
+            <option value="-">-</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase">Berkas</label>
+          <select id="edit-berkas" required class="glass-input !py-2.5 text-xs">
+            <option value="Matrial Request">MATRIAL REQUEST</option>
+            <option value="BA PENERIMAAN">BA PENERIMAAN</option>
+            <option value="BA PENGEMBALIAN">BA PENGEMBALIAN</option>
+            <option value="DO">DO</option>
+            <option value="DN">DN</option>
+            <option value="OTHER">OTHER</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase">Nomer BA</label>
+          <input type="text" id="edit-nomer-ba" list="ba-history-list" required class="glass-input !py-2.5 text-xs" autocomplete="off">
+        </div>
+
+        <div class="pt-3">
+          <button type="button" onclick="submitEdit()" class="w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-amber-500/25 uppercase tracking-wider text-xs">
+            Simpan Perubahan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL DELETE KONFIRMASI (PIN 0000)             -->
+  <!-- ============================================== -->
+  <div id="delete-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex-col items-center justify-center hidden px-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative text-center border border-slate-200 dark:border-slate-700">
+      
+      <div class="w-14 h-14 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+        <i class="fa-solid fa-trash-can text-2xl"></i>
+      </div>
+      
+      <h2 class="text-lg font-bold text-slate-800 dark:text-white uppercase mb-1">Hapus Data?</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Data riwayat dan file PDF di Google Drive akan dibuang. Masukkan PIN keamanan.</p>
+
+      <p id="delete-error-msg" class="text-xs text-red-500 hidden mb-2 font-bold uppercase">PIN SALAH. SILAKAN COBA LAGI.</p>
+      
+      <input type="password" id="delete-pin" maxlength="4" placeholder="••••" inputmode="numeric" class="glass-input text-center text-2xl tracking-[0.6em] mb-5 !py-3">
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <button onclick="closeDeleteModal()" class="w-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 rounded-xl active:scale-95 text-xs uppercase">
+          Batal
+        </button>
+        <button onclick="submitDelete()" class="w-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-red-500/20 text-xs uppercase">
+          Hapus
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULLSCREEN LOADING OVERLAY -->
+  <div id="loading-overlay" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-[80] flex flex-col items-center justify-center hidden">
+    <div class="bg-white dark:bg-slate-800 p-7 rounded-3xl shadow-2xl flex flex-col items-center max-w-[85%] text-center border border-slate-200 dark:border-slate-700">
+      <div class="w-16 h-16 border-4 border-emerald-200 dark:border-emerald-950 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
+      <h3 id="loading-title" class="font-extrabold text-slate-800 dark:text-white text-base uppercase">Memproses...</h3>
+      <p id="loading-message" class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">Mohon tunggu sebentar.</p>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-slate-900/90 text-white backdrop-blur-md px-5 py-2.5 rounded-full text-xs font-bold shadow-xl opacity-0 pointer-events-none z-[90] flex items-center gap-2 transition-all duration-300 border border-slate-700">
+    <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+    <span id="toast-msg">Pesan sukses.</span>
+  </div>
+
+  <!-- BOTTOM NAVIGATION (App Style) -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 pb-safe z-40 transition-colors">
+    <div class="max-w-md mx-auto flex justify-around p-2.5">
+      <button onclick="switchView('form')" id="nav-form" class="nav-btn flex flex-col items-center gap-1 w-20 text-emerald-600 dark:text-emerald-400 transition-colors">
+        <i class="fa-solid fa-pen-to-square text-lg"></i>
+        <span class="text-[10px] font-bold uppercase tracking-wider">Form</span>
+      </button>
+      <button onclick="switchView('camera')" id="nav-scanner" class="nav-btn flex flex-col items-center gap-1 w-20 text-slate-400 hover:text-emerald-600 transition-colors">
+        <i class="fa-solid fa-camera-retro text-lg"></i>
+        <span class="text-[10px] font-bold uppercase tracking-wider">Scanner</span>
+      </button>
+      <button onclick="switchView('history')" id="nav-history" class="nav-btn flex flex-col items-center gap-1 w-20 text-slate-400 hover:text-emerald-600 transition-colors">
+        <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+        <span class="text-[10px] font-bold uppercase tracking-wider">Riwayat</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================== -->
+  <!-- LIBRARIES: OpenCV & jsPDF                      -->
+  <!-- ============================================== -->
+  <script>
+    window.openCvReady = false;
+    function notifyOpenCvReady() {
+      window.openCvReady = true;
+      const badge = document.getElementById('cv-badge');
+      if (badge) {
+        badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 uppercase flex items-center gap-1';
+        badge.innerHTML = '<i class="fa-solid fa-bolt text-[8px]"></i> AI SCAN';
+      }
+    }
+    window.Module = {
+      onRuntimeInitialized: function() {
+        notifyOpenCvReady();
+      }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.9.0-release.1/dist/opencv.js" onload="if(window.cv && window.cv.Mat) notifyOpenCvReady();"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- ============================================== -->
+  <!-- JAVASCRIPT APP LOGIC                           -->
+  <!-- ============================================== -->
+  <script>
+    // ----------------------------------------------------
+    // 1. STATE & GLOBAL VARIABLES
+    // ----------------------------------------------------
+    let currentFormData = {};
+    let scannedPages = []; // Array of { dataUrl: string, filterMode: string, orientation: number }
+    let directPdfBase64 = null;
+    let directPdfName = '';
+    let historiesData = [];
+    let itemToDelete = { rowId: null, pdfUrl: null };
+    let isSaving = false;
+
+    // Crop State
+    let rawCropImage = null; // HTMLImageElement
+    let cropCorners = { tl: {x:0, y:0}, tr: {x:0, y:0}, br: {x:0, y:0}, bl: {x:0, y:0} };
+    let activeDragPoint = null; // 'tl', 'tr', 'br', 'bl', or midpoint 'top', 'right', 'bottom', 'left'
+    let cropEditingPageIndex = null; // null if new page, number if editing existing
+    let cropRotation = 0; // 0, 90, 180, 270
+
+    // Filter Screen State
+    let currentWarpedCanvas = null; // Unfiltered warped upright canvas
+    let currentFilteredCanvas = null; // Active filtered canvas
+    let activeFilterMode = 'magic'; // 'magic', 'color', 'bw', 'gray', 'original'
+
+    // Form Input State: Pastikan semua kolom input kosong dan bersih sebelum diisi
+    function clearMetadataForm(showNotice = false) {
+      const form = document.getElementById('metadata-form');
+      if (form) form.reset();
+      const tgl = document.getElementById('input-tanggal');
+      if (tgl) {
+        tgl.value = '';
+        tgl.type = 'text';
+      }
+      const shift = document.getElementById('input-shift');
+      if (shift) shift.selectedIndex = 0;
+      const jenis = document.getElementById('input-jenis');
+      if (jenis) jenis.selectedIndex = 0;
+      const vendor = document.getElementById('input-vendor');
+      if (vendor) vendor.selectedIndex = 0;
+      const berkas = document.getElementById('input-berkas');
+      if (berkas) berkas.selectedIndex = 0;
+      const nomerBa = document.getElementById('input-nomer-ba');
+      if (nomerBa) nomerBa.value = '';
+
+      if (showNotice) {
+        showToast('Semua kolom form dikosongkan!');
+      }
+    }
+
+    // Inisialisasi awal: kosongkan semua kolom
+    clearMetadataForm();
+
+    // ----------------------------------------------------
+    // 2. DARK MODE HANDLER
+    // ----------------------------------------------------
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const darkIcon = document.getElementById('theme-toggle-dark-icon');
+    const lightIcon = document.getElementById('theme-toggle-light-icon');
+
+    if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      lightIcon.classList.remove('hidden');
+      document.documentElement.classList.add('dark');
+    } else {
+      darkIcon.classList.remove('hidden');
+      document.documentElement.classList.remove('dark');
+    }
+
+    themeToggleBtn.addEventListener('click', function() {
+      darkIcon.classList.toggle('hidden');
+      lightIcon.classList.toggle('hidden');
+      if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('color-theme', 'light');
+      } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('color-theme', 'dark');
+      }
+    });
+
+    // ----------------------------------------------------
+    // 3. NAVIGATION & VIEW CONTROLLER
+    // ----------------------------------------------------
+    function switchView(viewName) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => {
+        el.classList.remove('text-emerald-600', 'dark:text-emerald-400');
+        el.classList.add('text-slate-400');
+      });
+
+      const target = document.getElementById('view-' + viewName);
+      if (target) target.classList.add('active');
+
+      const activeNav = document.getElementById('nav-' + (viewName === 'form' ? 'form' : viewName === 'camera' ? 'scanner' : 'history'));
+      if (activeNav) {
+        activeNav.classList.remove('text-slate-400');
+        activeNav.classList.add('text-emerald-600', 'dark:text-emerald-400');
+      }
+
+      if (viewName === 'history') {
+        if (historiesData.length > 0) {
+          renderHistory(historiesData);
+          fetchHistory(true);
+        } else {
+          fetchHistory(false);
+        }
+      }
+    }
+
+    function goToCamera() {
+      const form = document.getElementById('metadata-form');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      currentFormData = {
+        tanggal: document.getElementById('input-tanggal').value,
+        shift: document.getElementById('input-shift').value,
+        jenis: document.getElementById('input-jenis').value,
+        vendor: document.getElementById('input-vendor').value,
+        berkas: document.getElementById('input-berkas').value,
+        nomerBa: document.getElementById('input-nomer-ba').value.trim().toUpperCase()
+      };
+
+      switchView('camera');
+      updateWorkspaceUi();
+    }
+
+    function goToForm() {
+      switchView('form');
+    }
+
+    // ----------------------------------------------------
+    // 4. TOAST & NOTIFICATION
+    // ----------------------------------------------------
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = message;
+      toast.classList.remove('opacity-0', '-translate-y-4');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', '-translate-y-4');
+      }, 3000);
+    }
+
+    function showProcessing(title, msg) {
+      document.getElementById('loading-title').textContent = title || 'Memproses...';
+      document.getElementById('loading-message').textContent = msg || 'Mohon tunggu.';
+      document.getElementById('loading-overlay').classList.remove('hidden');
+    }
+
+    function hideProcessing() {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+
+    // ----------------------------------------------------
+    // 5. CAMSCANNER CAPTURE & CROP WORKFLOW
+    // ----------------------------------------------------
+    function onSourceFilePicked(event) {
+      const file = event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('Harap pilih file gambar dokumen.');
+        return;
+      }
+
+      showProcessing('Membuka Foto...', 'Menyiapkan deteksi tepi dokumen.');
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          hideProcessing();
+          openCropModalForImage(img, null);
+        };
+        img.onerror = function() {
+          hideProcessing();
+          alert('Gagal memuat gambar.');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function openCropModalForImage(img, pageIndex = null) {
+      rawCropImage = img;
+      cropEditingPageIndex = pageIndex;
+      cropRotation = 0;
+
+      // Auto detect corners on raw image with auto-trim for table borders
+      autoDetectDocumentCorners();
+
+      // Show crop modal
+      const modal = document.getElementById('crop-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      setupCropCanvas();
+      drawCropCanvas();
+    }
+
+    function cancelCrop() {
+      const modal = document.getElementById('crop-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      rawCropImage = null;
+      cropEditingPageIndex = null;
+    }
+
+    // Auto Detect 4 Document Corners: Hybrid Pure Canvas + OpenCV
+    function autoDetectDocumentCorners() {
+      if (!rawCropImage) return;
+
+      const w = rawCropImage.naturalWidth || rawCropImage.width;
+      const h = rawCropImage.naturalHeight || rawCropImage.height;
+
+      // 1. Pure Canvas instant edge detection (guaranteed to work in 3ms with 0 dependencies)
+      let detected = detectPaperCornersPureCanvas(rawCropImage);
+
+      // 2. If OpenCV is loaded, try enhanced Otsu contour detection
+      if (window.openCvReady && window.cv && window.cv.Mat) {
+        try {
+          const cv = window.cv;
+          const maxDim = 500;
+          const scale = Math.min(1, maxDim / Math.max(w, h));
+          const dw = Math.round(w * scale);
+          const dh = Math.round(h * scale);
+          const totalArea = dw * dh;
+
+          const tmpCanvas = document.createElement('canvas');
+          tmpCanvas.width = dw;
+          tmpCanvas.height = dh;
+          const ctx = tmpCanvas.getContext('2d');
+          ctx.drawImage(rawCropImage, 0, 0, dw, dh);
+
+          const src = cv.imread(tmpCanvas);
+          const gray = new cv.Mat();
+          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+          const blurred = new cv.Mat();
+          cv.GaussianBlur(gray, blurred, new cv.Size(9, 9), 0);
+
+          const otsu = new cv.Mat();
+          cv.threshold(blurred, otsu, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+
+          const otsuData = otsu.data;
+          let cornerWhite = 0;
+          if (otsuData[0] > 128) cornerWhite++;
+          if (otsuData[dw - 1] > 128) cornerWhite++;
+          if (otsuData[(dh - 1) * dw] > 128) cornerWhite++;
+          if (otsuData[(dh - 1) * dw + (dw - 1)] > 128) cornerWhite++;
+          if (cornerWhite >= 3) {
+            cv.bitwise_not(otsu, otsu);
+          }
+
+          const closeKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(11, 11));
+          const otsuClosed = new cv.Mat();
+          cv.morphologyEx(otsu, otsuClosed, cv.MORPH_CLOSE, closeKernel);
+
+          const contours = new cv.MatVector();
+          const hier = new cv.Mat();
+          cv.findContours(otsuClosed, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+          let maxArea = 0;
+          let cvQuad = null;
+
+          for (let i = 0; i < contours.size(); i++) {
+            const cnt = contours.get(i);
+            const area = cv.contourArea(cnt);
+            if (area > totalArea * 0.18 && area < totalArea * 0.94 && area > maxArea) {
+              const peri = cv.arcLength(cnt, true);
+              const approx = new cv.Mat();
+              cv.approxPolyDP(cnt, approx, 0.03 * peri, true);
+              if (approx.rows === 4) {
+                maxArea = area;
+                const d = approx.data32S;
+                cvQuad = orderQuadPoints([
+                  { x: d[0] / scale, y: d[1] / scale },
+                  { x: d[2] / scale, y: d[3] / scale },
+                  { x: d[4] / scale, y: d[5] / scale },
+                  { x: d[6] / scale, y: d[7] / scale }
+                ]);
+              }
+              approx.delete();
+            }
+            cnt.delete();
+          }
+
+          if (cvQuad) {
+            // Inset by 3.5% toward center to guarantee zero table borders
+            const cx = (cvQuad.tl.x + cvQuad.tr.x + cvQuad.br.x + cvQuad.bl.x) / 4;
+            const cy = (cvQuad.tl.y + cvQuad.tr.y + cvQuad.br.y + cvQuad.bl.y) / 4;
+            const inPt = p => ({
+              x: Math.max(0, Math.min(w, Math.round(p.x + (cx - p.x) * 0.035))),
+              y: Math.max(0, Math.min(h, Math.round(p.y + (cy - p.y) * 0.035)))
+            });
+            detected = {
+              tl: inPt(cvQuad.tl),
+              tr: inPt(cvQuad.tr),
+              br: inPt(cvQuad.br),
+              bl: inPt(cvQuad.bl)
+            };
+          }
+
+          src.delete(); gray.delete(); blurred.delete(); otsu.delete();
+          closeKernel.delete(); otsuClosed.delete(); contours.delete(); hier.delete();
+        } catch (e) {
+          console.warn('OpenCV corner detection fallback to pure canvas: ', e);
+        }
+      }
+
+      cropCorners = detected;
+      drawCropCanvas();
+    }
+
+    // Pure Canvas Document Corner Detection (Independent, 100% reliable, zero delay)
+    function detectPaperCornersPureCanvas(image) {
+      const w = image.naturalWidth || image.width;
+      const h = image.naturalHeight || image.height;
+
+      const scale = Math.min(1, 320 / Math.max(w, h));
+      const dw = Math.round(w * scale);
+      const dh = Math.round(h * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = dw;
+      canvas.height = dh;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(image, 0, 0, dw, dh);
+      const imgData = ctx.getImageData(0, 0, dw, dh);
+      const data = imgData.data;
+
+      // Sample central area to determine paper brightness baseline
+      let centerLum = 0;
+      let count = 0;
+      const cxStart = Math.round(dw * 0.35);
+      const cxEnd = Math.round(dw * 0.65);
+      const cyStart = Math.round(dh * 0.35);
+      const cyEnd = Math.round(dh * 0.65);
+
+      for (let y = cyStart; y <= cyEnd; y += 4) {
+        for (let x = cxStart; x <= cxEnd; x += 4) {
+          const idx = (y * dw + x) * 4;
+          const lum = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
+          if (lum > 110) {
+            centerLum += lum;
+            count++;
+          }
+        }
+      }
+      const refLum = count > 0 ? (centerLum / count) : 200;
+      const paperThreshold = Math.max(105, refLum * 0.68);
+
+      function isPaper(x, y) {
+        const idx = (y * dw + x) * 4;
+        const r = data[idx];
+        const g = data[idx+1];
+        const b = data[idx+2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const chroma = maxC - minC;
+        return (lum >= paperThreshold) && (chroma < 35 || lum > 190);
+      }
+
+      // Scan inward from outer edges
+      const scanLinesY = [0.20, 0.35, 0.50, 0.65, 0.80].map(p => Math.round(dh * p));
+      const scanLinesX = [0.20, 0.35, 0.50, 0.65, 0.80].map(p => Math.round(dw * p));
+
+      let leftVals = [];
+      let rightVals = [];
+      let topVals = [];
+      let botVals = [];
+
+      scanLinesY.forEach(y => {
+        for (let x = 0; x < dw * 0.45; x++) {
+          if (isPaper(x, y) && isPaper(x + 2, y) && isPaper(x + 4, y)) {
+            leftVals.push(x / scale);
+            break;
+          }
+        }
+        for (let x = dw - 1; x > dw * 0.55; x--) {
+          if (isPaper(x, y) && isPaper(x - 2, y) && isPaper(x - 4, y)) {
+            rightVals.push(x / scale);
+            break;
+          }
+        }
+      });
+
+      scanLinesX.forEach(x => {
+        for (let y = 0; y < dh * 0.45; y++) {
+          if (isPaper(x, y) && isPaper(x, y + 2) && isPaper(x, y + 4)) {
+            topVals.push(y / scale);
+            break;
+          }
+        }
+        for (let y = dh - 1; y > dh * 0.55; y--) {
+          if (isPaper(x, y) && isPaper(x, y - 2) && isPaper(x, y - 4)) {
+            botVals.push(y / scale);
+            break;
+          }
+        }
+      });
+
+      const getMedian = arr => {
+        if (!arr.length) return null;
+        const s = arr.slice().sort((a, b) => a - b);
+        return s[Math.floor(s.length / 2)];
+      };
+
+      const leftX = getMedian(leftVals);
+      const rightX = getMedian(rightVals);
+      const topY = getMedian(topVals);
+      const botY = getMedian(botVals);
+
+      if (leftX !== null && rightX !== null && topY !== null && botY !== null) {
+        if ((rightX - leftX) > w * 0.40 && (botY - topY) > h * 0.40) {
+          // Inset 3.5% inwards to ensure ZERO desk borders
+          const insetX = (rightX - leftX) * 0.035;
+          const insetY = (botY - topY) * 0.035;
+          return {
+            tl: { x: Math.max(0, Math.round(leftX + insetX)), y: Math.max(0, Math.round(topY + insetY)) },
+            tr: { x: Math.min(w, Math.round(rightX - insetX)), y: Math.max(0, Math.round(topY + insetY)) },
+            br: { x: Math.min(w, Math.round(rightX - insetX)), y: Math.min(h, Math.round(botY - insetY)) },
+            bl: { x: Math.max(0, Math.round(leftX + insetX)), y: Math.min(h, Math.round(botY - insetY)) }
+          };
+        }
+      }
+
+      // Safe fallback: 6% inset from image boundaries
+      return {
+        tl: { x: w * 0.06, y: h * 0.06 },
+        tr: { x: w * 0.94, y: h * 0.06 },
+        br: { x: w * 0.94, y: h * 0.94 },
+        bl: { x: w * 0.06, y: h * 0.94 }
+      };
+    }
+
+    function orderQuadPoints(pts) {
+      if (!pts || pts.length !== 4) return pts;
+      const cx = (pts[0].x + pts[1].x + pts[2].x + pts[3].x) / 4;
+      const cy = (pts[0].y + pts[1].y + pts[2].y + pts[3].y) / 4;
+
+      const sorted = pts.slice().sort((a, b) => {
+        return Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx);
+      });
+
+      let tlIdx = 0;
+      let minSum = Infinity;
+      sorted.forEach((p, idx) => {
+        const sum = p.x + p.y;
+        if (sum < minSum) {
+          minSum = sum;
+          tlIdx = idx;
+        }
+      });
+
+      return {
+        tl: sorted[tlIdx],
+        tr: sorted[(tlIdx + 1) % 4],
+        br: sorted[(tlIdx + 2) % 4],
+        bl: sorted[(tlIdx + 3) % 4]
+      };
+    }
+
+    function resetCropToFull() {
+      if (!rawCropImage) return;
+      const w = rawCropImage.naturalWidth || rawCropImage.width;
+      const h = rawCropImage.naturalHeight || rawCropImage.height;
+      cropCorners = {
+        tl: { x: 0, y: 0 },
+        tr: { x: w, y: 0 },
+        br: { x: w, y: h },
+        bl: { x: 0, y: h }
+      };
+      drawCropCanvas();
+      showToast('Area penuh dipilih');
+    }
+
+    // Inset Crop to shave off table borders with 1 tap
+    function insetCropMargin(amount = 0.035) {
+      if (!rawCropImage) return;
+      const cx = (cropCorners.tl.x + cropCorners.tr.x + cropCorners.br.x + cropCorners.bl.x) / 4;
+      const cy = (cropCorners.tl.y + cropCorners.tr.y + cropCorners.br.y + cropCorners.bl.y) / 4;
+      const inPt = p => ({
+        x: p.x + (cx - p.x) * amount,
+        y: p.y + (cy - p.y) * amount
+      });
+      cropCorners = {
+        tl: inPt(cropCorners.tl),
+        tr: inPt(cropCorners.tr),
+        br: inPt(cropCorners.br),
+        bl: inPt(cropCorners.bl)
+      };
+      drawCropCanvas();
+      showToast('Sudut dipangkas ke dalam 3.5%');
+    }
+
+    function rotateCropImage(degree) {
+      if (!rawCropImage) return;
+      showProcessing('Memutar Foto...', '');
+      setTimeout(() => {
+        const w = rawCropImage.naturalWidth || rawCropImage.width;
+        const h = rawCropImage.naturalHeight || rawCropImage.height;
+        const rotated = document.createElement('canvas');
+        if (Math.abs(degree) === 90 || Math.abs(degree) === 270) {
+          rotated.width = h;
+          rotated.height = w;
+        } else {
+          rotated.width = w;
+          rotated.height = h;
+        }
+        const ctx = rotated.getContext('2d');
+        ctx.translate(rotated.width / 2, rotated.height / 2);
+        ctx.rotate((degree * Math.PI) / 180);
+        ctx.drawImage(rawCropImage, -w / 2, -h / 2);
+
+        const newImg = new Image();
+        newImg.onload = function() {
+          rawCropImage = newImg;
+          autoDetectDocumentCorners();
+          hideProcessing();
+          setupCropCanvas();
+          drawCropCanvas();
+        };
+        newImg.src = rotated.toDataURL('image/jpeg', 0.95);
+      }, 50);
+    }
+
+    // ----------------------------------------------------
+    // 6. INTERACTIVE 4-CORNER CROP CANVAS & LOUPE
+    // ----------------------------------------------------
+    let cropCanvasScale = 1;
+
+    function setupCropCanvas() {
+      const canvas = document.getElementById('crop-canvas');
+      const stage = document.getElementById('crop-stage');
+      if (!canvas || !stage || !rawCropImage) return;
+
+      const stageWidth = stage.clientWidth - 16;
+      const stageHeight = stage.clientHeight - 16;
+      const imgW = rawCropImage.naturalWidth || rawCropImage.width;
+      const imgH = rawCropImage.naturalHeight || rawCropImage.height;
+
+      const scale = Math.min(stageWidth / imgW, stageHeight / imgH);
+      cropCanvasScale = scale;
+
+      canvas.width = Math.round(imgW * scale);
+      canvas.height = Math.round(imgH * scale);
+
+      // Event listeners for touch and pointer
+      canvas.onpointerdown = handleCropPointerDown;
+      canvas.onpointermove = handleCropPointerMove;
+      canvas.onpointerup = handleCropPointerUp;
+      canvas.onpointercancel = handleCropPointerUp;
+    }
+
+    function getScreenPoint(imgPt) {
+      return {
+        x: imgPt.x * cropCanvasScale,
+        y: imgPt.y * cropCanvasScale
+      };
+    }
+
+    function getImagePoint(screenPt) {
+      return {
+        x: Math.max(0, Math.min(rawCropImage.naturalWidth || rawCropImage.width, screenPt.x / cropCanvasScale)),
+        y: Math.max(0, Math.min(rawCropImage.naturalHeight || rawCropImage.height, screenPt.y / cropCanvasScale))
+      };
+    }
+
+    function drawCropCanvas() {
+      const canvas = document.getElementById('crop-canvas');
+      if (!canvas || !rawCropImage) return;
+      const ctx = canvas.getContext('2d');
+      const cw = canvas.width;
+      const ch = canvas.height;
+
+      // Draw background image
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.drawImage(rawCropImage, 0, 0, cw, ch);
+
+      // Dark translucent overlay outside the quad
+      const stl = getScreenPoint(cropCorners.tl);
+      const str = getScreenPoint(cropCorners.tr);
+      const sbr = getScreenPoint(cropCorners.br);
+      const sbl = getScreenPoint(cropCorners.bl);
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      ctx.beginPath();
+      ctx.rect(0, 0, cw, ch);
+      // Cut out quad
+      ctx.moveTo(stl.x, stl.y);
+      ctx.lineTo(sbl.x, sbl.y);
+      ctx.lineTo(sbr.x, sbr.y);
+      ctx.lineTo(str.x, str.y);
+      ctx.closePath();
+      ctx.fill('evenodd');
+      ctx.restore();
+
+      // Interior 3x3 rule-of-thirds grid (CamScanner style)
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+
+      for (let i = 1; i <= 2; i++) {
+        const t = i / 3;
+        // Horizontal grid
+        const leftX = stl.x + (sbl.x - stl.x) * t;
+        const leftY = stl.y + (sbl.y - stl.y) * t;
+        const rightX = str.x + (sbr.x - str.x) * t;
+        const rightY = str.y + (sbr.y - str.y) * t;
+        ctx.beginPath();
+        ctx.moveTo(leftX, leftY);
+        ctx.lineTo(rightX, rightY);
+        ctx.stroke();
+
+        // Vertical grid
+        const topX = stl.x + (str.x - stl.x) * t;
+        const topY = stl.y + (str.y - stl.y) * t;
+        const botX = sbl.x + (sbr.x - sbl.x) * t;
+        const botY = sbl.y + (sbr.y - sbl.y) * t;
+        ctx.beginPath();
+        ctx.moveTo(topX, topY);
+        ctx.lineTo(botX, botY);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Draw quadrilateral border (CamScanner Glowing Emerald)
+      ctx.save();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(stl.x, stl.y);
+      ctx.lineTo(str.x, str.y);
+      ctx.lineTo(sbr.x, sbr.y);
+      ctx.lineTo(sbl.x, sbl.y);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw 4 corner handles
+      const corners = [
+        { pt: stl, id: 'tl' },
+        { pt: str, id: 'tr' },
+        { pt: sbr, id: 'br' },
+        { pt: sbl, id: 'bl' }
+      ];
+
+      corners.forEach(c => {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+        ctx.shadowBlur = 8;
+        // Outer white ring
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(c.pt.x, c.pt.y, 14, 0, Math.PI * 2);
+        ctx.fill();
+        // Inner emerald circle
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(c.pt.x, c.pt.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        // Center white dot
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(c.pt.x, c.pt.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Draw 4 edge midpoint handles
+      const midpoints = [
+        { pt: { x: (stl.x + str.x) / 2, y: (stl.y + str.y) / 2 }, id: 'top' },
+        { pt: { x: (str.x + sbr.x) / 2, y: (str.y + sbr.y) / 2 }, id: 'right' },
+        { pt: { x: (sbl.x + sbr.x) / 2, y: (sbl.y + sbr.y) / 2 }, id: 'bottom' },
+        { pt: { x: (stl.x + sbl.x) / 2, y: (stl.y + sbl.y) / 2 }, id: 'left' }
+      ];
+
+      midpoints.forEach(m => {
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(m.pt.x, m.pt.y, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(m.pt.x, m.pt.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function handleCropPointerDown(e) {
+      const rect = e.target.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+
+      const corners = [
+        { id: 'tl', pt: getScreenPoint(cropCorners.tl) },
+        { id: 'tr', pt: getScreenPoint(cropCorners.tr) },
+        { id: 'br', pt: getScreenPoint(cropCorners.br) },
+        { id: 'bl', pt: getScreenPoint(cropCorners.bl) }
+      ];
+
+      // Touch tolerance radius (generous 36px for easy touch on phone)
+      let minDist = 36;
+      let target = null;
+
+      corners.forEach(c => {
+        const d = Math.hypot(c.pt.x - sx, c.pt.y - sy);
+        if (d < minDist) {
+          minDist = d;
+          target = c.id;
+        }
+      });
+
+      // Check midpoints if no corner touched
+      if (!target) {
+        const stl = corners[0].pt; const str = corners[1].pt;
+        const sbr = corners[2].pt; const sbl = corners[3].pt;
+        const mids = [
+          { id: 'top', pt: { x: (stl.x + str.x)/2, y: (stl.y + str.y)/2 } },
+          { id: 'right', pt: { x: (str.x + sbr.x)/2, y: (str.y + sbr.y)/2 } },
+          { id: 'bottom', pt: { x: (sbl.x + sbr.x)/2, y: (sbl.y + sbr.y)/2 } },
+          { id: 'left', pt: { x: (stl.x + sbl.x)/2, y: (stl.y + sbl.y)/2 } }
+        ];
+        mids.forEach(m => {
+          const d = Math.hypot(m.pt.x - sx, m.pt.y - sy);
+          if (d < 30) {
+            target = m.id;
+          }
+        });
+      }
+
+      if (target) {
+        activeDragPoint = target;
+        e.target.setPointerCapture(e.pointerId);
+        updateLoupe(e.clientX, e.clientY);
+      }
+    }
+
+    function handleCropPointerMove(e) {
+      if (!activeDragPoint) return;
+      const rect = document.getElementById('crop-canvas').getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const imgPt = getImagePoint({ x: sx, y: sy });
+
+      if (['tl', 'tr', 'br', 'bl'].includes(activeDragPoint)) {
+        cropCorners[activeDragPoint] = imgPt;
+      } else if (activeDragPoint === 'top') {
+        cropCorners.tl.y = imgPt.y;
+        cropCorners.tr.y = imgPt.y;
+      } else if (activeDragPoint === 'bottom') {
+        cropCorners.bl.y = imgPt.y;
+        cropCorners.br.y = imgPt.y;
+      } else if (activeDragPoint === 'left') {
+        cropCorners.tl.x = imgPt.x;
+        cropCorners.bl.x = imgPt.x;
+      } else if (activeDragPoint === 'right') {
+        cropCorners.tr.x = imgPt.x;
+        cropCorners.br.x = imgPt.x;
+      }
+
+      drawCropCanvas();
+      updateLoupe(e.clientX, e.clientY);
+    }
+
+    function handleCropPointerUp(e) {
+      if (activeDragPoint) {
+        activeDragPoint = null;
+        try { e.target.releasePointerCapture(e.pointerId); } catch(err){}
+        const loupe = document.getElementById('crop-loupe');
+        if (loupe) loupe.style.display = 'none';
+      }
+    }
+
+    // CamScanner Floating Magnifier Loupe
+    function updateLoupe(clientX, clientY) {
+      const loupe = document.getElementById('crop-loupe');
+      if (!loupe || !activeDragPoint || !rawCropImage) return;
+
+      loupe.style.display = 'block';
+      // Float 80px above touch position so finger never blocks view
+      loupe.style.left = clientX + 'px';
+      loupe.style.top = (clientY - 85) + 'px';
+
+      const ctx = loupe.getContext('2d');
+      const lw = loupe.width;
+      const lh = loupe.height;
+      ctx.clearRect(0, 0, lw, lh);
+
+      let targetImgPt = cropCorners[activeDragPoint] || getImagePoint({ x: clientX, y: clientY });
+
+      // Draw 2.5x zoomed view around target point
+      const zoom = 2.5;
+      const srcW = lw / zoom;
+      const srcH = lh / zoom;
+      const srcX = targetImgPt.x - srcW / 2;
+      const srcY = targetImgPt.y - srcH / 2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lw/2, lh/2, lw/2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(rawCropImage, srcX, srcY, srcW, srcH, 0, 0, lw, lh);
+
+      // Target Crosshair
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      // Center ring
+      ctx.arc(lw/2, lh/2, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      // Cross lines
+      ctx.moveTo(lw/2, 0); ctx.lineTo(lw/2, lh);
+      ctx.moveTo(0, lh/2); ctx.lineTo(lw, lh/2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ----------------------------------------------------
+    // 7. PERSPECTIVE WARP & SHADOW REMOVER ENGINE
+    // ----------------------------------------------------
+    function applyCropAndWarp() {
+      if (!rawCropImage) return;
+      showProcessing('Meratakan Dokumen...', 'Menerapkan transformasi perspektif & memangkas sisa meja.');
+
+      setTimeout(() => {
+        try {
+          let warped = warpPerspectiveQuad(rawCropImage, cropCorners);
+
+          // AUTO-STRIP RESIDUAL DESK / TABLE BORDERS FROM WARPED CANVAS
+          warped = autoTrimDeskFromWarpedCanvas(warped);
+
+          currentWarpedCanvas = warped;
+          activeFilterMode = 'magic';
+
+          // Close crop modal, open filter modal
+          document.getElementById('crop-modal').classList.add('hidden');
+          document.getElementById('crop-modal').classList.remove('flex');
+
+          const filterModal = document.getElementById('filter-modal');
+          filterModal.classList.remove('hidden');
+          filterModal.classList.add('flex');
+
+          // Render with Magic Color
+          renderFilterPreview('magic');
+          hideProcessing();
+        } catch (err) {
+          hideProcessing();
+          alert('Gagal meratakan dokumen: ' + err.message);
+        }
+      }, 60);
+    }
+
+    function warpPerspectiveQuad(image, quad) {
+      const topW = Math.hypot(quad.tr.x - quad.tl.x, quad.tr.y - quad.tl.y);
+      const botW = Math.hypot(quad.br.x - quad.bl.x, quad.br.y - quad.bl.y);
+      const leftH = Math.hypot(quad.bl.x - quad.tl.x, quad.bl.y - quad.tl.y);
+      const rightH = Math.hypot(quad.br.x - quad.tr.x, quad.br.y - quad.tr.y);
+
+      let outW = Math.round(Math.max(topW, botW));
+      let outH = Math.round(Math.max(leftH, rightH));
+
+      // Limit max resolution for performance and sharpness (max 2200px)
+      const maxDim = 2200;
+      const scale = Math.min(1, maxDim / Math.max(outW, outH));
+      outW = Math.round(outW * scale);
+      outH = Math.round(outH * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = outW;
+      canvas.height = outH;
+
+      if (window.openCvReady && window.cv && window.cv.Mat) {
+        try {
+          const cv = window.cv;
+          const srcMat = cv.imread(image);
+          const dstMat = new cv.Mat();
+
+          const srcQuad = cv.matFromArray(4, 1, cv.CV_32FC2, [
+            quad.tl.x, quad.tl.y,
+            quad.tr.x, quad.tr.y,
+            quad.br.x, quad.br.y,
+            quad.bl.x, quad.bl.y
+          ]);
+          const dstQuad = cv.matFromArray(4, 1, cv.CV_32FC2, [
+            0, 0,
+            outW - 1, 0,
+            outW - 1, outH - 1,
+            0, outH - 1
+          ]);
+
+          const transform = cv.getPerspectiveTransform(srcQuad, dstQuad);
+          cv.warpPerspective(srcMat, dstMat, transform, new cv.Size(outW, outH), cv.INTER_CUBIC, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
+          cv.imshow(canvas, dstMat);
+
+          srcMat.delete(); dstMat.delete(); srcQuad.delete(); dstQuad.delete(); transform.delete();
+        } catch (e) {
+          console.warn('OpenCV warp fallback: ', e);
+          fallbackCanvasCrop(canvas, image, quad, outW, outH);
+        }
+      } else {
+        fallbackCanvasCrop(canvas, image, quad, outW, outH);
+      }
+
+      return canvas;
+    }
+
+    function fallbackCanvasCrop(canvas, image, quad, outW, outH) {
+      const minX = Math.max(0, Math.min(quad.tl.x, quad.bl.x));
+      const maxX = Math.min(image.naturalWidth || image.width, Math.max(quad.tr.x, quad.br.x));
+      const minY = Math.max(0, Math.min(quad.tl.y, quad.tr.y));
+      const maxY = Math.min(image.naturalHeight || image.height, Math.max(quad.bl.y, quad.br.y));
+      const cropW = Math.max(10, maxX - minX);
+      const cropH = Math.max(10, maxY - minY);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(image, minX, minY, cropW, cropH, 0, 0, outW, outH);
+    }
+
+    // Post-Warp Auto Desk Stripper: Automatically detects and cuts away any remaining table border
+    function autoTrimDeskFromWarpedCanvas(canvas) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      // Sample central area to determine typical paper color & brightness
+      let paperLumSum = 0;
+      let sampleCount = 0;
+      const cxStart = Math.round(w * 0.35);
+      const cxEnd = Math.round(w * 0.65);
+      const cyStart = Math.round(h * 0.35);
+      const cyEnd = Math.round(h * 0.65);
+
+      for (let y = cyStart; y < cyEnd; y += 8) {
+        for (let x = cxStart; x < cxEnd; x += 8) {
+          const idx = (y * w + x) * 4;
+          const lum = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
+          if (lum > 130) {
+            paperLumSum += lum;
+            sampleCount++;
+          }
+        }
+      }
+      const baselinePaperLum = sampleCount > 0 ? (paperLumSum / sampleCount) : 210;
+
+      function isDeskPixel(x, y) {
+        const idx = (y * w + x) * 4;
+        const r = data[idx];
+        const g = data[idx+1];
+        const b = data[idx+2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const chroma = maxC - minC;
+
+        if (lum < Math.min(135, baselinePaperLum * 0.72)) return true; // Dark desk/mousepad/shadow
+        if (chroma > 25 && lum < 220) return true; // Wood table, colored surface
+        return false;
+      }
+
+      const maxTrimX = Math.round(w * 0.14);
+      const maxTrimY = Math.round(h * 0.14);
+
+      // 1. Scan Top edge
+      let trimTop = 0;
+      for (let y = 0; y < maxTrimY; y++) {
+        let deskCount = 0;
+        let testPoints = 0;
+        for (let x = Math.round(w * 0.1); x < Math.round(w * 0.9); x += 6) {
+          testPoints++;
+          if (isDeskPixel(x, y)) deskCount++;
+        }
+        if (deskCount / testPoints > 0.20) {
+          trimTop = y + 1;
+        } else if (y > trimTop + 3) {
+          break;
+        }
+      }
+
+      // 2. Scan Bottom edge
+      let trimBottom = 0;
+      for (let y = h - 1; y >= h - maxTrimY; y--) {
+        let deskCount = 0;
+        let testPoints = 0;
+        for (let x = Math.round(w * 0.1); x < Math.round(w * 0.9); x += 6) {
+          testPoints++;
+          if (isDeskPixel(x, y)) deskCount++;
+        }
+        if (deskCount / testPoints > 0.20) {
+          trimBottom = (h - 1) - y + 1;
+        } else if ((h - 1) - y > trimBottom + 3) {
+          break;
+        }
+      }
+
+      // 3. Scan Left edge
+      let trimLeft = 0;
+      for (let x = 0; x < maxTrimX; x++) {
+        let deskCount = 0;
+        let testPoints = 0;
+        for (let y = Math.round(h * 0.1); y < Math.round(h * 0.9); y += 6) {
+          testPoints++;
+          if (isDeskPixel(x, y)) deskCount++;
+        }
+        if (deskCount / testPoints > 0.20) {
+          trimLeft = x + 1;
+        } else if (x > trimLeft + 3) {
+          break;
+        }
+      }
+
+      // 4. Scan Right edge
+      let trimRight = 0;
+      for (let x = w - 1; x >= w - maxTrimX; x--) {
+        let deskCount = 0;
+        let testPoints = 0;
+        for (let y = Math.round(h * 0.1); y < Math.round(h * 0.9); y += 6) {
+          testPoints++;
+          if (isDeskPixel(x, y)) deskCount++;
+        }
+        if (deskCount / testPoints > 0.20) {
+          trimRight = (w - 1) - x + 1;
+        } else if ((w - 1) - x > trimRight + 3) {
+          break;
+        }
+      }
+
+      // Add a safe 4px buffer
+      if (trimTop > 0) trimTop = Math.min(maxTrimY, trimTop + 4);
+      if (trimBottom > 0) trimBottom = Math.min(maxTrimY, trimBottom + 4);
+      if (trimLeft > 0) trimLeft = Math.min(maxTrimX, trimLeft + 4);
+      if (trimRight > 0) trimRight = Math.min(maxTrimX, trimRight + 4);
+
+      const newW = w - trimLeft - trimRight;
+      const newH = h - trimTop - trimBottom;
+
+      if (newW > w * 0.65 && newH > h * 0.65 && (trimTop > 0 || trimBottom > 0 || trimLeft > 0 || trimRight > 0)) {
+        const trimmed = document.createElement('canvas');
+        trimmed.width = newW;
+        trimmed.height = newH;
+        const tctx = trimmed.getContext('2d');
+        tctx.drawImage(canvas, trimLeft, trimTop, newW, newH, 0, 0, newW, newH);
+        return trimmed;
+      }
+
+      return canvas;
+    }
+
+    // CamScanner Filter Engine
+    function renderFilterPreview(mode) {
+      if (!currentWarpedCanvas) return;
+      activeFilterMode = mode;
+
+      // Update Active Button in UI
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById('filter-btn-' + mode);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const filterNames = {
+        magic: 'Magic Color (Pilihan CamScanner)',
+        color: 'Cerah (Pertahankan Warna Asli)',
+        bw: 'B&W (Hitam Putih Tegas)',
+        gray: 'Grayscale (Abu-abu Bersih)',
+        original: 'Dokumen Asli (Tanpa Filter)'
+      };
+      document.getElementById('current-filter-name').textContent = filterNames[mode] || 'Magic Color';
+
+      const outputCanvas = document.createElement('canvas');
+      outputCanvas.width = currentWarpedCanvas.width;
+      outputCanvas.height = currentWarpedCanvas.height;
+      const ctx = outputCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+      ctx.drawImage(currentWarpedCanvas, 0, 0);
+
+      const processedCanvas = applyCamScannerFilter(outputCanvas, mode);
+      currentFilteredCanvas = processedCanvas;
+
+      // Render onto display preview canvas
+      const displayCanvas = document.getElementById('filter-canvas');
+      displayCanvas.width = processedCanvas.width;
+      displayCanvas.height = processedCanvas.height;
+      const dctx = displayCanvas.getContext('2d');
+      dctx.drawImage(processedCanvas, 0, 0);
+    }
+
+    function selectFilterMode(mode) {
+      showProcessing('Menerapkan Filter...', '');
+      setTimeout(() => {
+        renderFilterPreview(mode);
+        hideProcessing();
+      }, 40);
+    }
+
+    // ==============================================================
+    // CAMSCANNER MORPHOLOGICAL ILLUMINATION DIVISION & ANTI-FADE
+    // ==============================================================
+    function applyCamScannerFilter(canvas, mode) {
+      if (mode === 'original') return canvas;
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const isMagic = (mode === 'magic');
+      const isColor = (mode === 'color');
+      const isBw = (mode === 'bw');
+      const isGray = (mode === 'gray');
+
+      // 1. Try OpenCV Morphological Background Division (Shadow Remover & Contrast Enhancer)
+      if (window.openCvReady && window.cv && window.cv.Mat) {
+        try {
+          const cv = window.cv;
+          const src = cv.imread(canvas);
+          const rgb = new cv.Mat();
+          cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+
+          const gray = new cv.Mat();
+          cv.cvtColor(rgb, gray, cv.COLOR_RGB2GRAY);
+
+          // Downscale gray to ~420px for ultra-smooth illumination gradient estimation
+          const scaleIllum = Math.min(1, 420 / Math.max(w, h));
+          const dw = Math.round(w * scaleIllum);
+          const dh = Math.round(h * scaleIllum);
+          const smallGray = new cv.Mat();
+          cv.resize(gray, smallGray, new cv.Size(dw, dh), 0, 0, cv.INTER_AREA);
+
+          // Morphological Dilation with 15x15 kernel: removes text strokes, retains paper & shadow
+          const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(15, 15));
+          const smallDilated = new cv.Mat();
+          cv.dilate(smallGray, smallDilated, kernel);
+
+          // Gaussian Blur: smooth illumination field
+          const smallBlur = new cv.Mat();
+          cv.GaussianBlur(smallDilated, smallBlur, new cv.Size(25, 25), 0);
+
+          // Resize illumination map back to full image size
+          const bgIllum = new cv.Mat();
+          cv.resize(smallBlur, bgIllum, new cv.Size(w, h), 0, 0, cv.INTER_LINEAR);
+
+          if (isBw) {
+            const normGray = new cv.Mat();
+            cv.divide(gray, bgIllum, normGray, 255.0);
+            const binary = new cv.Mat();
+            const bwBlock = Math.max(25, Math.min(51, Math.round(w * 0.025) | 1));
+            cv.adaptiveThreshold(normGray, binary, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, bwBlock, 12);
+            cv.imshow(canvas, binary);
+            src.delete(); rgb.delete(); gray.delete(); smallGray.delete(); kernel.delete();
+            smallDilated.delete(); smallBlur.delete(); bgIllum.delete(); normGray.delete(); binary.delete();
+            return cleanOuterPerimeter(canvas, 8);
+          }
+
+          if (isGray) {
+            const normGray = new cv.Mat();
+            cv.divide(gray, bgIllum, normGray, 255.0);
+            cv.imshow(canvas, normGray);
+            src.delete(); rgb.delete(); gray.delete(); smallGray.delete(); kernel.delete();
+            smallDilated.delete(); smallBlur.delete(); bgIllum.delete(); normGray.delete();
+            return fineTunePaperPixels(canvas, false, true);
+          }
+
+          // Magic Color & Color: Divide each channel by illumination map
+          const channels = new cv.MatVector();
+          cv.split(rgb, channels);
+          const r = channels.get(0);
+          const g = channels.get(1);
+          const b = channels.get(2);
+
+          const normR = new cv.Mat();
+          const normG = new cv.Mat();
+          const normB = new cv.Mat();
+          cv.divide(r, bgIllum, normR, 255.0);
+          cv.divide(g, bgIllum, normG, 255.0);
+          cv.divide(b, bgIllum, normB, 255.0);
+
+          const merged = new cv.MatVector();
+          merged.push_back(normR);
+          merged.push_back(normG);
+          merged.push_back(normB);
+
+          const normRgb = new cv.Mat();
+          cv.merge(merged, normRgb);
+
+          // Unsharp Masking for razor sharp printed text & handwriting
+          const blurred = new cv.Mat();
+          const sharpened = new cv.Mat();
+          cv.GaussianBlur(normRgb, blurred, new cv.Size(3, 3), 0);
+          cv.addWeighted(normRgb, 1.35, blurred, -0.35, 0, sharpened);
+
+          cv.imshow(canvas, sharpened);
+
+          src.delete(); rgb.delete(); gray.delete(); smallGray.delete(); kernel.delete();
+          smallDilated.delete(); smallBlur.delete(); bgIllum.delete();
+          channels.delete(); r.delete(); g.delete(); b.delete(); normR.delete(); normG.delete(); normB.delete();
+          merged.delete(); normRgb.delete(); blurred.delete(); sharpened.delete();
+
+          return fineTunePaperPixels(canvas, isMagic, false);
+        } catch (e) {
+          console.warn('OpenCV shadow removal fallback: ', e);
+        }
+      }
+
+      // Pure Canvas 2D fallback with block-based illumination division
+      return applyCanvasShadowDivision(canvas, isMagic);
+    }
+
+    // High performance pure JS Canvas 2D shadow division fallback
+    function applyCanvasShadowDivision(canvas, isMagic) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      const gridSize = 36;
+      const cols = Math.ceil(w / gridSize);
+      const rows = Math.ceil(h / gridSize);
+      const bgGrid = new Float32Array(cols * rows);
+
+      for (let gy = 0; gy < rows; gy++) {
+        for (let gx = 0; gx < cols; gx++) {
+          const startX = gx * gridSize;
+          const endX = Math.min(w, startX + gridSize);
+          const startY = gy * gridSize;
+          const endY = Math.min(h, startY + gridSize);
+
+          let maxLum = 0;
+          for (let y = startY; y < endY; y += 4) {
+            for (let x = startX; x < endX; x += 4) {
+              const idx = (y * w + x) * 4;
+              const lum = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
+              if (lum > maxLum) maxLum = lum;
+            }
+          }
+          bgGrid[gy * cols + gx] = Math.max(60, maxLum);
+        }
+      }
+
+      for (let y = 0; y < h; y++) {
+        const gy = Math.min(rows - 1, y / gridSize);
+        const gy0 = Math.floor(gy);
+        const gy1 = Math.min(rows - 1, gy0 + 1);
+        const ty = gy - gy0;
+
+        for (let x = 0; x < w; x++) {
+          const gx = Math.min(cols - 1, x / gridSize);
+          const gx0 = Math.floor(gx);
+          const gx1 = Math.min(cols - 1, gx0 + 1);
+          const tx = gx - gx0;
+
+          const b00 = bgGrid[gy0 * cols + gx0];
+          const b10 = bgGrid[gy0 * cols + gx1];
+          const b01 = bgGrid[gy1 * cols + gx0];
+          const b11 = bgGrid[gy1 * cols + gx1];
+          const bg = (b00 * (1 - tx) + b10 * tx) * (1 - ty) + (b01 * (1 - tx) + b11 * tx) * ty;
+
+          const idx = (y * w + x) * 4;
+          const scale = 255 / Math.max(40, bg);
+          data[idx] = Math.min(255, data[idx] * scale);
+          data[idx+1] = Math.min(255, data[idx+1] * scale);
+          data[idx+2] = Math.min(255, data[idx+2] * scale);
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      return fineTunePaperPixels(canvas, isMagic);
+    }
+
+    // Dynamic Paper Whitening & Anti-Fade Ink Tuning (CamScanner Digital Look)
+    function fineTunePaperPixels(canvas, isMagic, isGray = false) {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const len = data.length;
+
+      for (let i = 0; i < len; i += 4) {
+        let r = data[i];
+        let g = data[i+1];
+        let b = data[i+2];
+
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const chroma = maxC - minC;
+
+        if (isMagic) {
+          // Check for colored stamps, signatures, or seals (blue ink, red stamp)
+          if (chroma >= 18 && !isGray) {
+            // VIBRANT STAMPS & SIGNATURES:
+            const avg = (r + g + b) / 3;
+            r = avg + (r - avg) * 1.40;
+            g = avg + (g - avg) * 1.40;
+            b = avg + (b - avg) * 1.40;
+            if (lum > 215) {
+              r = 255; g = 255; b = 255;
+            }
+          } else {
+            // MONOCHROME / TEXT / LINES / PAPER
+            if (lum >= 222) {
+              // PURE WHITE PAPER (#FFFFFF)
+              r = 255; g = 255; b = 255;
+            } else if (lum >= 208) {
+              // Smooth ramp into pure white
+              const t = (lum - 208) / 14;
+              r = r + (255 - r) * t;
+              g = g + (255 - g) * t;
+              b = b + (255 - b) * t;
+            } else {
+              // ANTI-FADE INK ENHANCEMENT:
+              // Faint printed text, headers, and handwriting are strengthened and darkened
+              const ratio = lum / 208.0;
+              const darkenFactor = Math.pow(ratio, 1.85);
+              r = r * darkenFactor;
+              g = g * darkenFactor;
+              b = b * darkenFactor;
+            }
+          }
+        } else if (isGray) {
+          if (lum >= 222) {
+            r = 255; g = 255; b = 255;
+          } else if (lum >= 208) {
+            const t = (lum - 208) / 14;
+            r = r + (255 - r) * t;
+            g = r; b = r;
+          } else {
+            const ratio = lum / 208.0;
+            const darkenFactor = Math.pow(ratio, 1.85);
+            r = lum * darkenFactor;
+            g = r; b = r;
+          }
+        }
+
+        data[i] = Math.max(0, Math.min(255, Math.round(r)));
+        data[i+1] = Math.max(0, Math.min(255, Math.round(g)));
+        data[i+2] = Math.max(0, Math.min(255, Math.round(b)));
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      return cleanOuterPerimeter(canvas, 8);
+    }
+
+    function cleanOuterPerimeter(canvas, borderWidth = 8) {
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = borderWidth;
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+      return canvas;
+    }
+
+    // Button to trim residual border in Filter screen
+    function cleanResidualBorders() {
+      if (!currentWarpedCanvas) return;
+      const w = currentWarpedCanvas.width;
+      const h = currentWarpedCanvas.height;
+
+      // Crop 4.5% inwards on all sides
+      const trimX = Math.round(w * 0.045);
+      const trimY = Math.round(h * 0.045);
+      const newW = w - trimX * 2;
+      const newH = h - trimY * 2;
+
+      const trimmed = document.createElement('canvas');
+      trimmed.width = newW;
+      trimmed.height = newH;
+      const ctx = trimmed.getContext('2d');
+      ctx.drawImage(currentWarpedCanvas, trimX, trimY, newW, newH, 0, 0, newW, newH);
+
+      currentWarpedCanvas = trimmed;
+      renderFilterPreview(activeFilterMode);
+      showToast('Sisa tepi meja dipangkas 4.5%!');
+    }
+
+    function rotateFilterCanvas(degree) {
+      if (!currentWarpedCanvas) return;
+      const w = currentWarpedCanvas.width;
+      const h = currentWarpedCanvas.height;
+      const rotated = document.createElement('canvas');
+      rotated.width = h;
+      rotated.height = w;
+      const ctx = rotated.getContext('2d');
+      ctx.translate(rotated.width / 2, rotated.height / 2);
+      ctx.rotate((degree * Math.PI) / 180);
+      ctx.drawImage(currentWarpedCanvas, -w / 2, -h / 2);
+
+      currentWarpedCanvas = rotated;
+      renderFilterPreview(activeFilterMode);
+    }
+
+    function reopenCropModal() {
+      document.getElementById('filter-modal').classList.add('hidden');
+      document.getElementById('filter-modal').classList.remove('flex');
+
+      document.getElementById('crop-modal').classList.remove('hidden');
+      document.getElementById('crop-modal').classList.add('flex');
+      setupCropCanvas();
+      drawCropCanvas();
+    }
+
+    function finalizePageScan() {
+      if (!currentFilteredCanvas) return;
+
+      const finalizedDataUrl = currentFilteredCanvas.toDataURL('image/jpeg', 0.94);
+      const isLandscape = currentFilteredCanvas.width > currentFilteredCanvas.height * 1.05;
+
+      const pageItem = {
+        dataUrl: finalizedDataUrl,
+        filterMode: activeFilterMode,
+        isLandscape: isLandscape
+      };
+
+      if (cropEditingPageIndex !== null && cropEditingPageIndex >= 0) {
+        scannedPages[cropEditingPageIndex] = pageItem;
+        showToast('Halaman ' + (cropEditingPageIndex + 1) + ' berhasil diperbarui!');
+      } else {
+        scannedPages.push(pageItem);
+        showToast('Halaman ' + scannedPages.length + ' ditambahkan ke dokumen!');
+      }
+
+      // Close filter modal
+      document.getElementById('filter-modal').classList.add('hidden');
+      document.getElementById('filter-modal').classList.remove('flex');
+
+      // Clear direct PDF if any
+      directPdfBase64 = null;
+
+      updateWorkspaceUi();
+    }
+
+    // ----------------------------------------------------
+    // 8. MULTI-PAGE WORKSPACE & MANAGEMENT
+    // ----------------------------------------------------
+    function updateWorkspaceUi() {
+      const container = document.getElementById('pages-container');
+      const emptyState = document.getElementById('empty-scan-state');
+      const pdfDirect = document.getElementById('pdf-direct-container');
+      const submitBtn = document.getElementById('btn-submit-scan');
+      const subtitle = document.getElementById('page-count-subtitle');
+
+      container.innerHTML = '';
+
+      if (scannedPages.length > 0) {
+        emptyState.classList.add('hidden');
+        pdfDirect.classList.add('hidden');
+        container.classList.remove('hidden');
+
+        subtitle.textContent = scannedPages.length + ' HALAMAN SIAP';
+
+        scannedPages.forEach((page, index) => {
+          const card = document.createElement('div');
+          card.className = 'bg-slate-50 dark:bg-slate-900/60 rounded-2xl p-3.5 border border-slate-200 dark:border-slate-700/80 shadow-sm flex flex-col gap-3';
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center">${index + 1}</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white">HALAMAN ${index + 1}</span>
+                <span class="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 uppercase">${page.filterMode}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <button onclick="movePageOrder(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 text-slate-500 disabled:opacity-30 active:scale-90 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-xs">
+                  <i class="fa-solid fa-arrow-up"></i>
+                </button>
+                <button onclick="movePageOrder(${index}, 1)" ${index === scannedPages.length - 1 ? 'disabled' : ''} class="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 text-slate-500 disabled:opacity-30 active:scale-90 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-xs">
+                  <i class="fa-solid fa-arrow-down"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Crisp A4 Sheet Preview -->
+            <div class="a4-sheet-card w-full max-h-[45vh] mx-auto border border-slate-200/60 dark:border-slate-700 flex items-center justify-center">
+              <img src="${page.dataUrl}" alt="Scan Halaman ${index + 1}" class="w-full h-full object-contain">
+            </div>
+
+            <!-- Page Actions -->
+            <div class="grid grid-cols-4 gap-1.5 pt-1">
+              <button onclick="reEditPage(${index})" class="bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 py-2 rounded-xl text-[10px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-solid fa-crop-simple text-xs"></i> <span>Crop</span>
+              </button>
+              <button onclick="reFilterPage(${index})" class="bg-violet-100 hover:bg-violet-200 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 py-2 rounded-xl text-[10px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-solid fa-wand-magic-sparkles text-xs"></i> <span>Filter</span>
+              </button>
+              <button onclick="rotateSavedPage(${index})" class="bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 py-2 rounded-xl text-[10px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-solid fa-rotate-right text-xs"></i> <span>Putar</span>
+              </button>
+              <button onclick="deleteSavedPage(${index})" class="bg-red-100 hover:bg-red-200 dark:bg-red-950/40 text-red-700 dark:text-red-300 py-2 rounded-xl text-[10px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-solid fa-trash text-xs"></i> <span>Hapus</span>
+              </button>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+
+        submitBtn.disabled = false;
+        submitBtn.className = 'w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold py-4 px-4 rounded-2xl shadow-lg shadow-emerald-600/30 transition-all flex justify-center items-center gap-2 uppercase tracking-wider text-sm cursor-pointer';
+        submitBtn.innerHTML = `<i class="fa-solid fa-file-pdf text-lg"></i> <span>Buat PDF (${scannedPages.length} Halaman) & Simpan</span>`;
+
+      } else if (directPdfBase64) {
+        emptyState.classList.add('hidden');
+        container.classList.add('hidden');
+        pdfDirect.classList.remove('hidden');
+        subtitle.textContent = '1 BERKAS PDF';
+
+        submitBtn.disabled = false;
+        submitBtn.className = 'w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold py-4 px-4 rounded-2xl shadow-lg shadow-emerald-600/30 transition-all flex justify-center items-center gap-2 uppercase tracking-wider text-sm cursor-pointer';
+        submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-lg"></i> <span>Simpan Berkas PDF ke Drive</span>`;
+
+      } else {
+        emptyState.classList.remove('hidden');
+        container.classList.add('hidden');
+        pdfDirect.classList.add('hidden');
+        subtitle.textContent = '0 HALAMAN SIAP';
+
+        submitBtn.disabled = true;
+        submitBtn.className = 'w-full bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold py-4 px-4 rounded-2xl transition-all flex justify-center items-center gap-2 uppercase tracking-wider text-sm cursor-not-allowed';
+        submitBtn.innerHTML = `<i class="fa-solid fa-file-circle-check"></i> <span>Buat & Simpan PDF</span>`;
+      }
+    }
+
+    function movePageOrder(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= scannedPages.length) return;
+      const tmp = scannedPages[index];
+      scannedPages[index] = scannedPages[newIndex];
+      scannedPages[newIndex] = tmp;
+      updateWorkspaceUi();
+    }
+
+    function deleteSavedPage(index) {
+      if (confirm('Hapus Halaman ' + (index + 1) + '?')) {
+        scannedPages.splice(index, 1);
+        updateWorkspaceUi();
+        showToast('Halaman dihapus.');
+      }
+    }
+
+    function rotateSavedPage(index) {
+      showProcessing('Memutar Halaman...', '');
+      const img = new Image();
+      img.onload = function() {
+        const c = document.createElement('canvas');
+        c.width = img.height;
+        c.height = img.width;
+        const ctx = c.getContext('2d');
+        ctx.translate(c.width / 2, c.height / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+        scannedPages[index].dataUrl = c.toDataURL('image/jpeg', 0.94);
+        scannedPages[index].isLandscape = c.width > c.height * 1.05;
+        hideProcessing();
+        updateWorkspaceUi();
+      };
+      img.src = scannedPages[index].dataUrl;
+    }
+
+    function reEditPage(index) {
+      const img = new Image();
+      img.onload = function() {
+        openCropModalForImage(img, index);
+      };
+      img.src = scannedPages[index].dataUrl;
+    }
+
+    function reFilterPage(index) {
+      const img = new Image();
+      img.onload = function() {
+        const c = document.createElement('canvas');
+        c.width = img.width;
+        c.height = img.height;
+        c.getContext('2d').drawImage(img, 0, 0);
+
+        currentWarpedCanvas = c;
+        cropEditingPageIndex = index;
+        activeFilterMode = scannedPages[index].filterMode || 'magic';
+
+        const filterModal = document.getElementById('filter-modal');
+        filterModal.classList.remove('hidden');
+        filterModal.classList.add('flex');
+        renderFilterPreview(activeFilterMode);
+      };
+      img.src = scannedPages[index].dataUrl;
+    }
+
+    // Direct PDF Upload
+    function onPdfFilePicked(event) {
+      const file = event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      if (file.type !== 'application/pdf') {
+        alert('Harap pilih berkas berformat PDF.');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Ukuran PDF maksimal 10 MB.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        directPdfBase64 = e.target.result;
+        directPdfName = file.name;
+        document.getElementById('pdf-file-name').textContent = file.name;
+        scannedPages = [];
+        updateWorkspaceUi();
+        showToast('Berkas PDF dipilih.');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removePdfDirect() {
+      directPdfBase64 = null;
+      directPdfName = '';
+      updateWorkspaceUi();
+    }
+
+    // ----------------------------------------------------
+    // 9. HIGH-QUALITY A4 PDF GENERATOR (CamScanner Style)
+    // ----------------------------------------------------
+    async function generateCamScannerPdf(pages) {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error('Mesin PDF (jsPDF) belum termuat.');
+      }
+
+      const { jsPDF } = window.jspdf;
+      let pdfDoc = null;
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = page.dataUrl;
+        });
+
+        const isLandscape = img.naturalWidth > img.naturalHeight * 1.05;
+        const orientation = isLandscape ? 'landscape' : 'portrait';
+
+        if (!pdfDoc) {
+          pdfDoc = new jsPDF({
+            orientation: orientation,
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+          });
+        } else {
+          pdfDoc.addPage('a4', orientation);
+        }
+
+        const pageWidth = pdfDoc.internal.pageSize.getWidth();
+        const pageHeight = pdfDoc.internal.pageSize.getHeight();
+
+        // CamScanner standard minimal white margin (1.5mm)
+        const margin = 1.5;
+        const availableW = pageWidth - margin * 2;
+        const availableH = pageHeight - margin * 2;
+
+        const imgRatio = img.naturalWidth / img.naturalHeight;
+        const pageRatio = availableW / availableH;
+
+        let drawW, drawH;
+        if (imgRatio > pageRatio) {
+          drawW = availableW;
+          drawH = drawW / imgRatio;
+        } else {
+          drawH = availableH;
+          drawW = drawH * imgRatio;
+        }
+
+        const posX = (pageWidth - drawW) / 2;
+        const posY = (pageHeight - drawH) / 2;
+
+        // Clean white page background
+        pdfDoc.setFillColor(255, 255, 255);
+        pdfDoc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        // Add crisp image at fast JPEG rendering
+        pdfDoc.addImage(page.dataUrl, 'JPEG', posX, posY, drawW, drawH, 'page_' + i, 'FAST');
+      }
+
+      // Metadata CamScanner Pro
+      pdfDoc.setProperties({
+        title: currentFormData.nomerBa || 'OGDC PPA CamScanner',
+        subject: currentFormData.berkas || 'Dokumen Scan Transaksi',
+        author: 'OGDC PPA CamScanner Pro',
+        creator: 'OGDC PPA CamScanner v3.3'
+      });
+
+      return pdfDoc.output('datauristring');
+    }
+
+    // ----------------------------------------------------
+    // 10. SUBMIT TRANSACTION & SAVE TO DRIVE & SHEETS
+    // ----------------------------------------------------
+    async function submitCompleteTransaction() {
+      if (scannedPages.length === 0 && !directPdfBase64) {
+        alert('Belum ada dokumen yang dipindai!');
+        return;
+      }
+
+      if (isSaving) return;
+      isSaving = true;
+
+      showProcessing('Merakit PDF...', 'Menyiapkan berkas A4 berkualitas tinggi.');
+
+      try {
+        let finalPdfBase64 = directPdfBase64;
+        if (!finalPdfBase64) {
+          finalPdfBase64 = await generateCamScannerPdf(scannedPages);
+        }
+
+        showProcessing('Menyimpan ke Google Drive...', 'Mengunggah PDF dan mencatat riwayat transaksi.');
+
+        google.script.run
+          .withSuccessHandler(function(response) {
+            hideProcessing();
+            isSaving = false;
+            if (response && response.success) {
+              scannedPages = [];
+              directPdfBase64 = null;
+              updateWorkspaceUi();
+
+              clearMetadataForm();
+
+              showToast('Dokumen berhasil disimpan!');
+              switchView('history');
+            } else {
+              alert('Gagal menyimpan: ' + (response ? response.message : 'Kesalahan server.'));
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideProcessing();
+            isSaving = false;
+            alert('Kesalahan jaringan: ' + error.message);
+          })
+          .saveTransaction(currentFormData, [], finalPdfBase64);
+
+      } catch (err) {
+        hideProcessing();
+        isSaving = false;
+        alert('Gagal membuat PDF: ' + err.message);
+      }
+    }
+
+    // ----------------------------------------------------
+    // 11. RIWAYAT TRANSAKSI & SEARCH ENGINE
+    // ----------------------------------------------------
+    function fetchHistory(isSilent = false) {
+      if (!isSilent && document.getElementById('view-history').classList.contains('active')) {
+        document.getElementById('history-skeleton').classList.remove('hidden');
+        document.getElementById('history-list').innerHTML = '';
+      }
+
+      const refreshIcon = document.getElementById('refresh-icon');
+      if (refreshIcon) refreshIcon.classList.add('fa-spin', 'text-emerald-600');
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!isSilent && document.getElementById('view-history').classList.contains('active')) {
+            document.getElementById('history-skeleton').classList.add('hidden');
+          }
+          if (refreshIcon) refreshIcon.classList.remove('fa-spin', 'text-emerald-600');
+
+          historiesData = data || [];
+          populateBADatalist(historiesData);
+
+          if (document.getElementById('view-history').classList.contains('active')) {
+            filterHistory();
+          }
+        })
+        .withFailureHandler(function(error) {
+          if (refreshIcon) refreshIcon.classList.remove('fa-spin', 'text-emerald-600');
+          if (!isSilent && document.getElementById('view-history').classList.contains('active')) {
+            document.getElementById('history-skeleton').classList.add('hidden');
+            document.getElementById('history-list').innerHTML = `
+              <div class="text-center py-10">
+                <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-2"></i>
+                <p class="text-xs font-bold text-slate-500 uppercase">Gagal memuat riwayat</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">${error.message}</p>
+              </div>
+            `;
+          }
+        })
+        .getHistoryData();
+    }
+
+    function populateBADatalist(data) {
+      const baList = document.getElementById('ba-history-list');
+      if (!baList) return;
+      baList.innerHTML = '';
+      const uniqueBAs = [...new Set(data.map(item => item.nomerBa).filter(ba => ba && ba.trim() !== ''))];
+      uniqueBAs.forEach(ba => {
+        const opt = document.createElement('option');
+        opt.value = ba;
+        baList.appendChild(opt);
+      });
+    }
+
+    function forceRefreshHistory() {
+      document.getElementById('search-input').value = '';
+      document.getElementById('filter-date').value = '';
+      fetchHistory(false);
+    }
+
+    function clearDateFilter() {
+      document.getElementById('filter-date').value = '';
+      filterHistory();
+    }
+
+    function renderHistory(data) {
+      const container = document.getElementById('history-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12">
+            <i class="fa-regular fa-folder-open text-4xl text-slate-300 dark:text-slate-600 mb-2"></i>
+            <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase">Tidak ada transaksi ditemukan.</p>
+          </div>
+        `;
+        return;
+      }
+
+      data.forEach(item => {
+        let badgeColor = 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400';
+        let badgeIcon = 'fa-arrow-up';
+
+        if (item.jenis === 'Penerimaan') {
+          badgeColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400';
+          badgeIcon = 'fa-arrow-down';
+        } else if (item.jenis === 'Pengembalian') {
+          badgeColor = 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400';
+          badgeIcon = 'fa-rotate-left';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-700 flex flex-col gap-2.5 transition-colors';
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-extrabold text-slate-800 dark:text-white text-base uppercase">${item.vendor}</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${badgeColor} uppercase tracking-wider">
+                  <i class="fa-solid ${badgeIcon} mr-1"></i>${item.jenis}
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium uppercase">Shift ${item.shift} • <span class="text-emerald-600 dark:text-emerald-400 font-bold">${item.berkas}</span> • ${item.tanggal}</p>
+              ${item.nomerBa ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold"><i class="fa-solid fa-hashtag mr-1 text-slate-400"></i> ${item.nomerBa}</p>` : ''}
+            </div>
+            <span class="text-[10px] text-slate-400 font-semibold">${item.timestamp.split(' ')[1] || item.timestamp}</span>
+          </div>
+
+          <div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 flex flex-col gap-2 border border-slate-100 dark:border-slate-800">
+            <div class="flex items-start gap-2">
+              <i class="fa-regular fa-file-pdf text-red-500 text-base shrink-0 mt-0.5"></i>
+              <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 break-all uppercase">${item.fileName}</p>
+            </div>
+
+            <div class="grid grid-cols-4 gap-1.5 mt-1">
+              <button onclick="copyPdfLink('${item.pdfUrl}')" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 py-1.5 rounded-lg text-[9px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-regular fa-copy text-xs"></i> Salin
+              </button>
+              <button onclick="openEditModal(${item.rowId})" class="bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 py-1.5 rounded-lg text-[9px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-solid fa-pen text-xs"></i> Edit
+              </button>
+              <a href="${item.pdfUrl}" target="_blank" class="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 py-1.5 rounded-lg text-[9px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-solid fa-download text-xs"></i> Unduh
+              </a>
+              <button onclick="deleteHistory(${item.rowId}, '${item.pdfUrl}')" class="bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 py-1.5 rounded-lg text-[9px] font-bold uppercase flex flex-col items-center gap-1 active:scale-95 transition-all">
+                <i class="fa-solid fa-trash text-xs"></i> Hapus
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterHistory() {
+      const query = (document.getElementById('search-input').value || '').toLowerCase();
+      const filterDateVal = document.getElementById('filter-date').value;
+
+      let formattedDate = '';
+      if (filterDateVal) {
+        const parts = filterDateVal.split('-');
+        if (parts.length === 3) formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+
+      const filtered = historiesData.filter(item => {
+        const matchQuery = (item.vendor || '').toLowerCase().includes(query) ||
+          (item.tanggal || '').toLowerCase().includes(query) ||
+          (item.berkas || '').toLowerCase().includes(query) ||
+          (item.jenis || '').toLowerCase().includes(query) ||
+          (item.nomerBa || '').toLowerCase().includes(query);
+
+        const matchDate = formattedDate ? item.tanggal === formattedDate : true;
+        return matchQuery && matchDate;
+      });
+
+      renderHistory(filtered);
+    }
+
+    function copyPdfLink(url) {
+      if (!url) return;
+      const el = document.createElement('textarea');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      showToast('Link PDF disalin!');
+    }
+
+    // ----------------------------------------------------
+    // 12. EDIT & DELETE WITH SECURITY PIN
+    // ----------------------------------------------------
+    function openEditModal(rowId) {
+      const item = historiesData.find(x => x.rowId === rowId);
+      if (!item) return;
+
+      const dateParts = item.tanggal.split('/');
+      const inputDate = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : '';
+
+      document.getElementById('edit-rowid').value = item.rowId;
+      document.getElementById('edit-tanggal').value = inputDate;
+      document.getElementById('edit-shift').value = item.shift;
+      document.getElementById('edit-jenis').value = item.jenis;
+      document.getElementById('edit-vendor').value = item.vendor;
+      document.getElementById('edit-berkas').value = item.berkas;
+      document.getElementById('edit-nomer-ba').value = item.nomerBa;
+
+      const modal = document.getElementById('edit-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeEditModal() {
+      const modal = document.getElementById('edit-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function submitEdit() {
+      const form = document.getElementById('edit-form');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const rowId = parseInt(document.getElementById('edit-rowid').value);
+      const updated = {
+        tanggal: document.getElementById('edit-tanggal').value,
+        shift: document.getElementById('edit-shift').value,
+        jenis: document.getElementById('edit-jenis').value,
+        vendor: document.getElementById('edit-vendor').value,
+        berkas: document.getElementById('edit-berkas').value,
+        nomerBa: document.getElementById('edit-nomer-ba').value.trim().toUpperCase()
+      };
+
+      closeEditModal();
+      showProcessing('Memperbarui Data...', '');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          hideProcessing();
+          if (response && response.success) {
+            showToast('Data diperbarui!');
+            fetchHistory(true);
+          } else {
+            alert('Gagal update: ' + response.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          hideProcessing();
+          alert('Terjadi kesalahan: ' + error.message);
+        })
+        .updateTransaction(rowId, updated);
+    }
+
+    function deleteHistory(rowId, pdfUrl) {
+      itemToDelete.rowId = rowId;
+      itemToDelete.pdfUrl = pdfUrl;
+      document.getElementById('delete-pin').value = '';
+      document.getElementById('delete-error-msg').classList.add('hidden');
+
+      const modal = document.getElementById('delete-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.getElementById('delete-pin').focus();
+    }
+
+    function closeDeleteModal() {
+      const modal = document.getElementById('delete-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      itemToDelete = { rowId: null, pdfUrl: null };
+    }
+
+    function submitDelete() {
+      const pin = document.getElementById('delete-pin').value;
+      if (pin !== '0000') {
+        document.getElementById('delete-error-msg').classList.remove('hidden');
+        document.getElementById('delete-pin').value = '';
+        document.getElementById('delete-pin').focus();
+        return;
+      }
+
+      const targetRowId = itemToDelete.rowId;
+      const targetPdfUrl = itemToDelete.pdfUrl;
+
+      closeDeleteModal();
+      showProcessing('Menghapus Data & PDF...', '');
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          hideProcessing();
+          if (response && response.success) {
+            showToast('Data & PDF berhasil dihapus!');
+            fetchHistory(true);
+          } else {
+            alert('Gagal menghapus: ' + response.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          hideProcessing();
+          alert('Terjadi kesalahan koneksi: ' + error.message);
+        })
+        .deleteTransaction(targetRowId, targetPdfUrl);
+    }
+
+    function openHelpModal() {
+      alert("PANDUAN CAMSCANNER PRO:\n1. Letakkan dokumen di atas meja yang warnanya kontras.\n2. Jika ada sisa meja kayu yang terbawa, tekan tombol 'Kikis Meja' di bawah.\n3. Mode 'Magic' otomatis menghapus bayangan tangan dan membuat kertas putih bersih!");
+    }
+
+    // Inisialisasi Riwayat di Awal
+    document.addEventListener('DOMContentLoaded', function() {
+      fetchHistory(true);
+    });
+  </script>
+
+  <!-- ============================================== -->
+  <!-- PWA FLOATING INSTALL BANNER & IOS GUIDE        -->
+  <!-- ============================================== -->
+  <div id="pwa-floating-banner" class="fixed bottom-20 left-4 right-4 max-w-md mx-auto bg-slate-900/95 dark:bg-slate-800/95 text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-500/30 z-40 backdrop-blur-md flex items-center justify-between gap-3 transform translate-y-32 transition-transform duration-300">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/30 shrink-0">
+        <i class="fa-solid fa-camera-viewfinder text-lg"></i>
+      </div>
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-white">Pasang Aplikasi PWA</h4>
+        <p class="text-[10px] text-slate-300">Akses cepat & layar penuh tanpa browser</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button onclick="dismissPwaBanner()" class="text-slate-400 hover:text-white text-xs px-2 py-1.5 font-bold uppercase">Nanti</button>
+      <button onclick="triggerPwaInstall()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-transform flex items-center gap-1">
+        <i class="fa-solid fa-download"></i> Pasang
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL PWA IOS GUIDE -->
+  <div id="pwa-ios-modal" class="fixed inset-0 bg-black/75 z-50 flex items-center justify-center hidden px-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full text-slate-800 dark:text-white shadow-2xl border border-slate-200 dark:border-slate-800 relative">
+      <button onclick="closeIosInstallModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="text-center mb-4">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-lg shadow-emerald-600/30 mb-3">
+          <i class="fa-brands fa-apple"></i>
+        </div>
+        <h3 class="font-extrabold uppercase text-base tracking-wide">Pasang di iPhone / iPad</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Ikuti 2 langkah mudah berikut untuk menginstal aplikasi di layar utama:</p>
+      </div>
+      <div class="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-xs">
+        <div class="flex items-center gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px]">1</span>
+          <span>Tekan tombol <strong>Bagikan (Share)</strong> <i class="fa-solid fa-arrow-up-from-bracket text-emerald-500 mx-1"></i> di bilah bawah Safari.</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px]">2</span>
+          <span>Gulir ke bawah dan pilih <strong>'Tambah ke Layar Utama'</strong> (Add to Home Screen).</span>
+        </div>
+      </div>
+      <button onclick="closeIosInstallModal()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl uppercase tracking-wider text-xs">Mengerti</button>
+    </div>
+  </div>
+
+</body>
+</html>
