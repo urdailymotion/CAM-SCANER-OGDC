@@ -2797,12 +2797,7 @@
           dismissPwaBanner();
         });
       } else {
-        const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIos) {
-          openIosInstallModal();
-        } else {
-          alert("PANDUAN PASANG PWA:\n\n1. Di Google Chrome / Edge PC: Klik ikon pasang (install) di sebelah kanan bilah alamat (URL) atau menu titik tiga (⋮) > 'Pasang / Install OGDC Scanner'.\n2. Di HP Android: Tekan tombol Pasang di bilah browser atau menu browser > 'Tambahkan ke Layar Utama'.\n3. Di iPhone/iPad (Safari): Tekan tombol Bagikan (Share) > 'Tambah ke Layar Utama'.");
-        }
+        openPwaGuideModal();
       }
     }
 
@@ -2814,16 +2809,43 @@
       }
     }
 
-    function openIosInstallModal() {
-      const modal = document.getElementById('pwa-ios-modal');
-      if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+    function openPwaGuideModal() {
+      const modal = document.getElementById('pwa-guide-modal');
+      if (!modal) return;
+
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      const androidGuide = document.getElementById('guide-android');
+      const iosGuide = document.getElementById('guide-ios');
+      const pcGuide = document.getElementById('guide-pc');
+      const icon = document.getElementById('guide-modal-icon');
+      const title = document.getElementById('guide-modal-title');
+
+      if (androidGuide) androidGuide.classList.add('hidden');
+      if (iosGuide) iosGuide.classList.add('hidden');
+      if (pcGuide) pcGuide.classList.add('hidden');
+
+      if (isIos) {
+        if (iosGuide) iosGuide.classList.remove('hidden');
+        if (icon) icon.className = 'fa-brands fa-apple';
+        if (title) title.innerText = 'Pasang di iPhone / iPad';
+      } else if (isMobile) {
+        if (androidGuide) androidGuide.classList.remove('hidden');
+        if (icon) icon.className = 'fa-brands fa-android';
+        if (title) title.innerText = 'Pasang di Android';
+      } else {
+        if (pcGuide) pcGuide.classList.remove('hidden');
+        if (icon) icon.className = 'fa-solid fa-desktop';
+        if (title) title.innerText = 'Pasang di PC / Laptop';
       }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
     }
 
-    function closeIosInstallModal() {
-      const modal = document.getElementById('pwa-ios-modal');
+    function closePwaGuideModal() {
+      const modal = document.getElementById('pwa-guide-modal');
       if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
@@ -2837,7 +2859,7 @@
   </script>
 
   <!-- ============================================== -->
-  <!-- PWA FLOATING INSTALL BANNER & IOS GUIDE        -->
+  <!-- PWA FLOATING INSTALL BANNER                    -->
   <!-- ============================================== -->
   <div id="pwa-floating-banner" class="fixed bottom-20 left-4 right-4 max-w-md mx-auto bg-slate-900/95 dark:bg-slate-800/95 text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-500/30 z-40 backdrop-blur-md flex items-center justify-between gap-3 transform translate-y-32 transition-transform duration-300">
     <div class="flex items-center gap-3">
@@ -2857,30 +2879,68 @@
     </div>
   </div>
 
-  <!-- MODAL PWA IOS GUIDE -->
-  <div id="pwa-ios-modal" class="fixed inset-0 bg-black/75 z-50 flex items-center justify-center hidden px-4">
+  <!-- ============================================== -->
+  <!-- MODAL PWA UNIVERSAL INSTALL GUIDE              -->
+  <!-- ============================================== -->
+  <div id="pwa-guide-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden px-4 select-none">
     <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full text-slate-800 dark:text-white shadow-2xl border border-slate-200 dark:border-slate-800 relative">
-      <button onclick="closeIosInstallModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center">
+      <button onclick="closePwaGuideModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-100 dark:bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center">
         <i class="fa-solid fa-xmark"></i>
       </button>
+
       <div class="text-center mb-4">
         <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-lg shadow-emerald-600/30 mb-3">
-          <i class="fa-brands fa-apple"></i>
+          <i id="guide-modal-icon" class="fa-solid fa-mobile-screen-button"></i>
         </div>
-        <h3 class="font-extrabold uppercase text-base tracking-wide">Pasang di iPhone / iPad</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Ikuti 2 langkah mudah berikut untuk menginstal aplikasi di layar utama:</p>
+        <h3 id="guide-modal-title" class="font-extrabold uppercase text-base tracking-wide">Pasang Aplikasi</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Akses cepat layar penuh langsung dari layar utama HP Anda.</p>
       </div>
-      <div class="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-xs">
-        <div class="flex items-center gap-3">
-          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px]">1</span>
-          <span>Tekan tombol <strong>Bagikan (Share)</strong> <i class="fa-solid fa-arrow-up-from-bracket text-emerald-500 mx-1"></i> di bilah bawah Safari.</span>
+
+      <!-- Android Guide Steps -->
+      <div id="guide-android" class="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-xs">
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">1</span>
+          <div>Ketuk tombol <strong>Menu (titik tiga ⋮)</strong> di pojok kanan atas browser Chrome / Samsung Internet.</div>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px]">2</span>
-          <span>Gulir ke bawah dan pilih <strong>'Tambah ke Layar Utama'</strong> (Add to Home Screen).</span>
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">2</span>
+          <div>Pilih menu <strong>'Tambahkan ke Layar utama'</strong> atau <strong>'Instal aplikasi'</strong>.</div>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">3</span>
+          <div>Tekan <strong>'Instal'</strong> untuk menambahkan ikon OGDC Scanner ke layar HP.</div>
         </div>
       </div>
-      <button onclick="closeIosInstallModal()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl uppercase tracking-wider text-xs">Mengerti</button>
+
+      <!-- iOS Guide Steps -->
+      <div id="guide-ios" class="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-xs hidden">
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">1</span>
+          <div>Tekan tombol <strong>Bagikan (Share)</strong> <i class="fa-solid fa-arrow-up-from-bracket text-emerald-500 mx-1"></i> di bilah bawah Safari.</div>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">2</span>
+          <div>Gulir ke bawah dan pilih <strong>'Tambah ke Layar Utama'</strong> (Add to Home Screen).</div>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">3</span>
+          <div>Tekan <strong>'Tambah'</strong> di pojok kanan atas.</div>
+        </div>
+      </div>
+
+      <!-- PC Guide Steps -->
+      <div id="guide-pc" class="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl text-xs hidden">
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">1</span>
+          <div>Klik ikon instalasi <i class="fa-solid fa-download text-emerald-500 mx-1"></i> di sebelah kanan bilah alamat (URL) Chrome / Edge.</div>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">2</span>
+          <div>Atau klik menu titik tiga (⋮) > <strong>'Instal OGDC Scanner'</strong>.</div>
+        </div>
+      </div>
+
+      <button onclick="closePwaGuideModal()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl uppercase tracking-wider text-xs">Saya Mengerti</button>
     </div>
   </div>
 

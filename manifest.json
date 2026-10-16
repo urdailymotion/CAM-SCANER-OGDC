@@ -1,4 +1,5 @@
 {
+  "id": "/CAM-SCANER-OGDC/",
   "name": "OGDC PPA CamScanner Pro",
   "short_name": "OGDC Scanner",
   "description": "Aplikasi Scanner Dokumen Digital PPA OGDC dengan Magic Color, Perspective Crop & PDF Generator",
@@ -13,25 +14,25 @@
       "src": "./icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://raw.githubusercontent.com/urdailymotion/CAM-SCANER-OGDC/main/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://raw.githubusercontent.com/urdailymotion/CAM-SCANER-OGDC/main/icon-512.png",
+      "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
   "categories": ["productivity", "business", "utilities"]

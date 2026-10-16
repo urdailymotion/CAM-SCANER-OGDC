@@ -67,7 +67,7 @@ self.addEventListener('fetch', (event) => {
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) return cachedResponse;
           if (event.request.mode === 'navigate') {
-            return caches.match('./Index.html');
+            return caches.match('./index.html');
           }
         });
       })
