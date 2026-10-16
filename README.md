@@ -2,7 +2,7 @@
 
 Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi langsung dengan **Google Apps Script**, **Google Drive**, dan **Google Sheets**. Dilengkapi dengan kemampuan **Progressive Web App (PWA)** sehingga dapat langsung diinstal di layar utama perangkat Android, iPhone/iPad, Windows, dan MacOS.
 
-![OGDC CamScanner](https://img.icons8.com/fluency/192/scanner.png)
+![OGDC CamScanner](./icon-192.png)
 
 ---
 

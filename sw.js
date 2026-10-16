@@ -1,20 +1,20 @@
 /**
  * Service Worker for OGDC PPA CamScanner Pro PWA
- * Version: 4.4
+ * Version: 4.5
  */
 
-const CACHE_NAME = 'ogdc-camscanner-cache-v4.4';
+const CACHE_NAME = 'ogdc-camscanner-cache-v4.5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './Index.html',
   './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './favicon.png',
   'https://cdn.tailwindcss.com',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://img.icons8.com/fluency/192/scanner.png',
-  'https://img.icons8.com/fluency/512/scanner.png'
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
 
 // Install Event

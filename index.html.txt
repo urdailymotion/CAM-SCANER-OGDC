@@ -12,8 +12,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="OGDC Scanner">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/192/scanner.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="https://img.icons8.com/fluency/192/scanner.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="https://raw.githubusercontent.com/urdailymotion/CAM-SCANER-OGDC/main/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="https://raw.githubusercontent.com/urdailymotion/CAM-SCANER-OGDC/main/icon-512.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/urdailymotion/CAM-SCANER-OGDC/main/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="https://raw.githubusercontent.com/urdailymotion/CAM-SCANER-OGDC/main/icon-512.png">
+  <link rel="shortcut icon" href="https://raw.githubusercontent.com/urdailymotion/CAM-SCANER-OGDC/main/favicon.png">
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
