@@ -9,13 +9,53 @@ const CONFIG = {
   SHEET_NAME: "Data_Transaksi"                    // Nama Sheet Database
 };
 
-// 1. Fungsi Utama Render Halaman
+// 1. Fungsi Utama Render Halaman & API Gateway
 function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('OGDC PPA CamScanner Pro')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  if (e && e.parameter && e.parameter.action === 'getHistoryData') {
+    const data = getHistoryData();
+    return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  try {
+    return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('OGDC PPA CamScanner Pro')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  } catch (err) {
+    return HtmlService.createHtmlOutputFromFile('Index')
+      .setTitle('OGDC PPA CamScanner Pro')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
 }
+
+// Handler request dari Frontend Eksternal (PWA Standalone / GitHub Pages)
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const action = payload.action;
+    let result;
+
+    if (action === 'saveTransaction') {
+      result = saveTransaction(payload.formData, payload.imagesBase64, payload.uploadedPdfBase64);
+    } else if (action === 'getHistoryData') {
+      result = getHistoryData();
+    } else if (action === 'updateTransaction') {
+      result = updateTransaction(payload.rowId, payload.formData);
+    } else if (action === 'deleteTransaction') {
+      result = deleteTransaction(payload.rowId, payload.pdfUrl);
+    } else {
+      result = { success: false, message: 'Action tidak dikenal: ' + action };
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Error Server: ' + err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 
 // 2. Fungsi Inisialisasi Database (Folder & Sheet)
 function initDatabase() {

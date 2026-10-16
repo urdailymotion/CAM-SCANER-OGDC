@@ -6,6 +6,7 @@
 const CACHE_NAME = 'ogdc-camscanner-cache-v4.4';
 const ASSETS_TO_CACHE = [
   './',
+  './index.html',
   './Index.html',
   './manifest.json',
   'https://cdn.tailwindcss.com',

@@ -59,10 +59,11 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
 ## 🛠️ Struktur File Proyek
 
 ```text
-├── Index.html          # Antarmuka Pengguna (UI), Logika Scanner & PWA Engine
+├── index.html          # Antarmuka Pengguna (UI), Logika Scanner & PWA Engine
 ├── Code.js             # Backend Google Apps Script (Drive & Sheets Handler)
 ├── manifest.json       # Web App Manifest untuk PWA
 ├── sw.js               # Service Worker untuk Caching & PWA
+├── .nojekyll           # Bypass Jekyll untuk GitHub Pages
 ├── appsscript.json     # Manifest Konfigurasi Google Apps Script
 ├── .clasp.json         # Konfigurasi Google Clasp CLI
 └── README.md           # Dokumentasi Proyek
@@ -70,7 +71,23 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
 
 ---
 
+## 🌐 Cara Mengaktifkan GitHub Pages (PWA Hosting)
+
+Untuk dapat menginstal PWA secara langsung di perangkat ponsel atau komputer melalui GitHub:
+1. Buka repositori di browser: [github.com/urdailymotion/CAM-SCANER-OGDC](https://github.com/urdailymotion/CAM-SCANER-OGDC)
+2. Masuk ke tab **Settings** > **Pages** (di menu sebelah kiri).
+3. Pada bagian **Build and deployment** > **Branch**:
+   - Pilih Branch: **`main`**
+   - Folder: **`/(root)`**
+   - Klik **Save**.
+4. Tunggu 1–2 menit, link PWA Anda akan aktif di:
+   👉 **`https://urdailymotion.github.io/CAM-SCANER-OGDC/`**
+5. Buka link tersebut di Google Chrome (Android/PC) atau Safari (iOS) untuk langsung memasang aplikasi PWA ke layar utama.
+
+---
+
 ## 🚀 Deployment ke Google Apps Script via Clasp
+
 
 Proyek ini telah dikonfigurasi untuk deployment instan menggunakan `@google/clasp`:
 

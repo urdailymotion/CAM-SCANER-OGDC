@@ -678,6 +678,42 @@
     let itemToDelete = { rowId: null, pdfUrl: null };
     let isSaving = false;
 
+    // Endpoint Google Apps Script untuk Web App & PWA Standalone (GitHub Pages)
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwkUq8e7UUt4lKOBUs6Ly8dMzBiwu9zDWuKlonhFqQ/exec";
+
+    function apiCall(action, params = {}) {
+      return new Promise((resolve, reject) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          // Native Apps Script Environment
+          const runner = google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject);
+          if (action === 'saveTransaction') runner.saveTransaction(params.formData, params.imagesBase64, params.uploadedPdfBase64);
+          else if (action === 'getHistoryData') runner.getHistoryData();
+          else if (action === 'updateTransaction') runner.updateTransaction(params.rowId, params.formData);
+          else if (action === 'deleteTransaction') runner.deleteTransaction(params.rowId, params.pdfUrl);
+          else reject(new Error('Action tidak dikenal: ' + action));
+        } else {
+          // Standalone PWA / GitHub Pages Environment
+          fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: action, ...params })
+          })
+          .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(resolve)
+          .catch(err => {
+            console.error('[API Bridge Error]', err);
+            reject(err);
+          });
+        }
+      });
+    }
+
     // Crop State
     let rawCropImage = null; // HTMLImageElement
     let cropCorners = { tl: {x:0, y:0}, tr: {x:0, y:0}, br: {x:0, y:0}, bl: {x:0, y:0} };
@@ -2387,29 +2423,32 @@
 
         showProcessing('Menyimpan ke Google Drive...', 'Mengunggah PDF dan mencatat riwayat transaksi.');
 
-        google.script.run
-          .withSuccessHandler(function(response) {
-            hideProcessing();
-            isSaving = false;
-            if (response && response.success) {
-              scannedPages = [];
-              directPdfBase64 = null;
-              updateWorkspaceUi();
+        apiCall('saveTransaction', {
+          formData: currentFormData,
+          imagesBase64: [],
+          uploadedPdfBase64: finalPdfBase64
+        })
+        .then(function(response) {
+          hideProcessing();
+          isSaving = false;
+          if (response && response.success) {
+            scannedPages = [];
+            directPdfBase64 = null;
+            updateWorkspaceUi();
 
-              clearMetadataForm();
+            clearMetadataForm();
 
-              showToast('Dokumen berhasil disimpan!');
-              switchView('history');
-            } else {
-              alert('Gagal menyimpan: ' + (response ? response.message : 'Kesalahan server.'));
-            }
-          })
-          .withFailureHandler(function(error) {
-            hideProcessing();
-            isSaving = false;
-            alert('Kesalahan jaringan: ' + error.message);
-          })
-          .saveTransaction(currentFormData, [], finalPdfBase64);
+            showToast('Dokumen berhasil disimpan!');
+            switchView('history');
+          } else {
+            alert('Gagal menyimpan: ' + (response ? response.message : 'Kesalahan server.'));
+          }
+        })
+        .catch(function(error) {
+          hideProcessing();
+          isSaving = false;
+          alert('Kesalahan jaringan / server: ' + error.message);
+        });
 
       } catch (err) {
         hideProcessing();
@@ -2430,8 +2469,8 @@
       const refreshIcon = document.getElementById('refresh-icon');
       if (refreshIcon) refreshIcon.classList.add('fa-spin', 'text-emerald-600');
 
-      google.script.run
-        .withSuccessHandler(function(data) {
+      apiCall('getHistoryData')
+        .then(function(data) {
           if (!isSilent && document.getElementById('view-history').classList.contains('active')) {
             document.getElementById('history-skeleton').classList.add('hidden');
           }
@@ -2444,7 +2483,7 @@
             filterHistory();
           }
         })
-        .withFailureHandler(function(error) {
+        .catch(function(error) {
           if (refreshIcon) refreshIcon.classList.remove('fa-spin', 'text-emerald-600');
           if (!isSilent && document.getElementById('view-history').classList.contains('active')) {
             document.getElementById('history-skeleton').classList.add('hidden');
@@ -2456,8 +2495,7 @@
               </div>
             `;
           }
-        })
-        .getHistoryData();
+        });
     }
 
     function populateBADatalist(data) {
@@ -2637,8 +2675,8 @@
       closeEditModal();
       showProcessing('Memperbarui Data...', '');
 
-      google.script.run
-        .withSuccessHandler(function(response) {
+      apiCall('updateTransaction', { rowId: rowId, formData: updated })
+        .then(function(response) {
           hideProcessing();
           if (response && response.success) {
             showToast('Data diperbarui!');
@@ -2647,11 +2685,10 @@
             alert('Gagal update: ' + response.message);
           }
         })
-        .withFailureHandler(function(error) {
+        .catch(function(error) {
           hideProcessing();
           alert('Terjadi kesalahan: ' + error.message);
-        })
-        .updateTransaction(rowId, updated);
+        });
     }
 
     function deleteHistory(rowId, pdfUrl) {
@@ -2688,8 +2725,8 @@
       closeDeleteModal();
       showProcessing('Menghapus Data & PDF...', '');
 
-      google.script.run
-        .withSuccessHandler(function(response) {
+      apiCall('deleteTransaction', { rowId: targetRowId, pdfUrl: targetPdfUrl })
+        .then(function(response) {
           hideProcessing();
           if (response && response.success) {
             showToast('Data & PDF berhasil dihapus!');
@@ -2698,15 +2735,96 @@
             alert('Gagal menghapus: ' + response.message);
           }
         })
-        .withFailureHandler(function(error) {
+        .catch(function(error) {
           hideProcessing();
           alert('Terjadi kesalahan koneksi: ' + error.message);
-        })
-        .deleteTransaction(targetRowId, targetPdfUrl);
+        });
     }
 
     function openHelpModal() {
       alert("PANDUAN CAMSCANNER PRO:\n1. Letakkan dokumen di atas meja yang warnanya kontras.\n2. Jika ada sisa meja kayu yang terbawa, tekan tombol 'Kikis Meja' di bawah.\n3. Mode 'Magic' otomatis menghapus bayangan tangan dan membuat kertas putih bersih!");
+    }
+
+    // ----------------------------------------------------
+    // 12. PWA SERVICE WORKER & INSTALL PROMPT LOGIC
+    // ----------------------------------------------------
+    let deferredPrompt = null;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js')
+          .then(function(reg) {
+            console.log('[PWA] Service Worker terdaftar dengan scope:', reg.scope);
+          })
+          .catch(function(err) {
+            console.warn('[PWA] Pendaftaran Service Worker gagal:', err);
+          });
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+
+      // Munculkan floating install banner & aktifkan tombol pasang
+      const banner = document.getElementById('pwa-floating-banner');
+      if (banner && !sessionStorage.getItem('pwa_banner_dismissed')) {
+        banner.classList.remove('translate-y-32');
+      }
+      const pwaBtn = document.getElementById('pwa-install-btn');
+      if (pwaBtn) pwaBtn.classList.remove('hidden');
+    });
+
+    window.addEventListener('appinstalled', function() {
+      console.log('[PWA] Aplikasi berhasil dipasang!');
+      dismissPwaBanner();
+      const pwaBtn = document.getElementById('pwa-install-btn');
+      if (pwaBtn) pwaBtn.classList.add('hidden');
+      showToast('Aplikasi berhasil dipasang di layar utama!');
+    });
+
+    function triggerPwaInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(choiceResult) {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('[PWA] Pengguna menerima pemasangan aplikasi');
+          }
+          deferredPrompt = null;
+          dismissPwaBanner();
+        });
+      } else {
+        const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIos) {
+          openIosInstallModal();
+        } else {
+          alert("PANDUAN PASANG PWA:\n\n1. Di Google Chrome / Edge PC: Klik ikon pasang (install) di sebelah kanan bilah alamat (URL) atau menu titik tiga (⋮) > 'Pasang / Install OGDC Scanner'.\n2. Di HP Android: Tekan tombol Pasang di bilah browser atau menu browser > 'Tambahkan ke Layar Utama'.\n3. Di iPhone/iPad (Safari): Tekan tombol Bagikan (Share) > 'Tambah ke Layar Utama'.");
+        }
+      }
+    }
+
+    function dismissPwaBanner() {
+      const banner = document.getElementById('pwa-floating-banner');
+      if (banner) {
+        banner.classList.add('translate-y-32');
+        sessionStorage.setItem('pwa_banner_dismissed', 'true');
+      }
+    }
+
+    function openIosInstallModal() {
+      const modal = document.getElementById('pwa-ios-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeIosInstallModal() {
+      const modal = document.getElementById('pwa-ios-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
     }
 
     // Inisialisasi Riwayat di Awal
