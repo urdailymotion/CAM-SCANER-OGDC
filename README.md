@@ -9,9 +9,9 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
 ## 🌟 Fitur Utama
 
 - **PWA (Progressive Web App) Installable**:
-  - Tombol **"Pasang Aplikasi"** langsung di bilah navigasi dan pop-up banner otomatis.
+  - Tombol **"Pasang Aplikasi"** langsung di bilah navigasi atas (bebas halangan navigasi bawah).
   - Berjalan dalam mode *standalone* layar penuh tanpa bilah URL browser, persis seperti aplikasi native Android/iOS.
-  - Dilengkapi panduan khusus untuk pengguna iOS Safari (*Add to Home Screen*).
+  - Dilengkapi panduan khusus untuk pengguna iOS Safari (*Add to Home Screen*) dan Android/Desktop.
   - Caching aset melalui Service Worker (`sw.js`) dan Web App Manifest (`manifest.json`).
 
 - **Otsu Auto-Crop & Convex Hull Edge Detection**:
@@ -39,7 +39,7 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
 
 ### 🤖 Android (Google Chrome / Samsung Internet)
 1. Buka tautan Web App di browser ponsel.
-2. Banner **"Pasang Aplikasi PWA"** akan muncul di bagian bawah, atau tekan tombol **"PASANG"** di pojok kanan atas.
+2. Tekan tombol **"PASANG"** di pojok kanan atas bilah navigasi.
 3. Tekan **"Pasang" / "Install"**.
 4. Ikon **OGDC Scanner** akan muncul di layar utama (*Home Screen*) HP Anda.
 

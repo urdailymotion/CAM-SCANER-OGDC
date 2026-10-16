@@ -53,6 +53,11 @@
     }
     html.dark body { background-color: #0b1120; }
     
+    /* Mobile safe area padding */
+    .pb-safe {
+      padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+    }
+
     /* Touch optimization */
     main { -webkit-overflow-scrolling: touch; transform: translateZ(0); }
     
@@ -2769,20 +2774,21 @@
       e.preventDefault();
       deferredPrompt = e;
 
-      // Munculkan floating install banner & aktifkan tombol pasang
-      const banner = document.getElementById('pwa-floating-banner');
-      if (banner && !sessionStorage.getItem('pwa_banner_dismissed')) {
-        banner.classList.remove('translate-y-32');
-      }
+      // Beri efek highlight lembut pada tombol PASANG di bilah atas
       const pwaBtn = document.getElementById('pwa-install-btn');
-      if (pwaBtn) pwaBtn.classList.remove('hidden');
+      if (pwaBtn) {
+        pwaBtn.classList.remove('hidden');
+        pwaBtn.classList.add('ring-2', 'ring-emerald-400', 'ring-offset-2', 'dark:ring-offset-slate-900');
+      }
     });
 
     window.addEventListener('appinstalled', function() {
       console.log('[PWA] Aplikasi berhasil dipasang!');
-      dismissPwaBanner();
       const pwaBtn = document.getElementById('pwa-install-btn');
-      if (pwaBtn) pwaBtn.classList.add('hidden');
+      if (pwaBtn) {
+        pwaBtn.classList.remove('ring-2', 'ring-emerald-400', 'ring-offset-2');
+        pwaBtn.classList.add('opacity-70');
+      }
       showToast('Aplikasi berhasil dipasang di layar utama!');
     });
 
@@ -2794,18 +2800,9 @@
             console.log('[PWA] Pengguna menerima pemasangan aplikasi');
           }
           deferredPrompt = null;
-          dismissPwaBanner();
         });
       } else {
         openPwaGuideModal();
-      }
-    }
-
-    function dismissPwaBanner() {
-      const banner = document.getElementById('pwa-floating-banner');
-      if (banner) {
-        banner.classList.add('translate-y-32');
-        sessionStorage.setItem('pwa_banner_dismissed', 'true');
       }
     }
 
@@ -2857,27 +2854,6 @@
       fetchHistory(true);
     });
   </script>
-
-  <!-- ============================================== -->
-  <!-- PWA FLOATING INSTALL BANNER                    -->
-  <!-- ============================================== -->
-  <div id="pwa-floating-banner" class="fixed bottom-20 left-4 right-4 max-w-md mx-auto bg-slate-900/95 dark:bg-slate-800/95 text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-500/30 z-40 backdrop-blur-md flex items-center justify-between gap-3 transform translate-y-32 transition-transform duration-300">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/30 shrink-0">
-        <i class="fa-solid fa-camera-viewfinder text-lg"></i>
-      </div>
-      <div>
-        <h4 class="text-xs font-bold uppercase tracking-wider text-white">Pasang Aplikasi PWA</h4>
-        <p class="text-[10px] text-slate-300">Akses cepat & layar penuh tanpa browser</p>
-      </div>
-    </div>
-    <div class="flex items-center gap-1.5 shrink-0">
-      <button onclick="dismissPwaBanner()" class="text-slate-400 hover:text-white text-xs px-2 py-1.5 font-bold uppercase">Nanti</button>
-      <button onclick="triggerPwaInstall()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-transform flex items-center gap-1">
-        <i class="fa-solid fa-download"></i> Pasang
-      </button>
-    </div>
-  </div>
 
   <!-- ============================================== -->
   <!-- MODAL PWA UNIVERSAL INSTALL GUIDE              -->
