@@ -99,18 +99,18 @@
     /* Canvas Editor Touch Action */
     #crop-canvas { touch-action: none; user-select: none; }
     
-    /* Loupe / Magnifier Circle */
+    /* CamScanner Pro Magnifier Loupe */
     #crop-loupe {
       position: absolute;
-      width: 120px;
-      height: 120px;
+      width: 130px;
+      height: 130px;
       border-radius: 9999px;
-      border: 3px solid #22c55e;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+      border: 3.5px solid #10b981;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.65), 0 0 18px rgba(16, 185, 129, 0.45);
       pointer-events: none;
       display: none;
       overflow: hidden;
-      background: #000;
+      background: #090d16;
       z-index: 999;
       transform: translate(-50%, -50%);
     }
@@ -937,7 +937,7 @@
       cropEditingPageIndex = null;
     }
 
-    // Auto Detect 4 Document Corners: Multi-Pass OpenCV (Otsu + Canny + Adaptive + Shoelace Area Maximization) + Pure Canvas Scanner
+    // Auto Detect 4 Document Corners (CamScanner Pro AI Auto-Crop Engine)
     function autoDetectDocumentCorners() {
       if (!rawCropImage) return;
 
@@ -947,15 +947,18 @@
       // 1. Instant Edge Gradient Detection (Pure Canvas fallback)
       let detected = detectPaperCornersPureCanvas(rawCropImage);
 
-      // 2. OpenCV Multi-Pass Engine (Otsu + Canny + Adaptive + Shoelace Area Maximization)
+      // 2. OpenCV Multi-Pass Engine (Otsu + Canny + Adaptive Gaussian + Shoelace Quad Maximization)
       if (window.openCvReady && window.cv && window.cv.Mat) {
         try {
           const cv = window.cv;
-          const maxDim = 540;
+          const maxDim = 440;
           const scale = Math.min(1, maxDim / Math.max(w, h));
           const dw = Math.round(w * scale);
           const dh = Math.round(h * scale);
-          const totalArea = dw * dh;
+          const pad = 4;
+          const paddedW = dw + pad * 2;
+          const paddedH = dh + pad * 2;
+          const totalArea = paddedW * paddedH;
 
           const tmpCanvas = document.createElement('canvas');
           tmpCanvas.width = dw;
@@ -970,8 +973,12 @@
           const blurred = new cv.Mat();
           cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
+          // Padded Mat with 4px black border so document touching edges is always fully enclosed
+          const padded = new cv.Mat();
+          cv.copyMakeBorder(blurred, padded, pad, pad, pad, pad, cv.BORDER_CONSTANT, new cv.Scalar(0));
+
           let bestQuad = null;
-          let maxArea = 0;
+          let bestScore = 0;
 
           // Helper to analyze a binary/edge mask
           const evaluateMask = (mask) => {
@@ -982,85 +989,65 @@
             for (let i = 0; i < contours.size(); i++) {
               const cnt = contours.get(i);
               const area = cv.contourArea(cnt);
-              if (area > totalArea * 0.08 && area < totalArea * 0.98 && area > maxArea) {
-                const hull = new cv.Mat();
-                cv.convexHull(cnt, hull, false, true);
-                const peri = cv.arcLength(hull, true);
+              // Must cover between 8% and 99% of total area
+              if (area > totalArea * 0.08 && area < totalArea * 0.99) {
+                const peri = cv.arcLength(cnt, true); // SAFE directly on cnt!
+                let quadPts = null;
 
-                let foundQuad = null;
-
-                // Pass A: ApproxPolyDP across varying epsilon
+                // Pass A: ApproxPolyDP directly on cnt across varying epsilons (0.015 to 0.065)
                 for (let eps = 0.015; eps <= 0.065; eps += 0.005) {
                   const approx = new cv.Mat();
-                  cv.approxPolyDP(hull, approx, eps * peri, true);
+                  cv.approxPolyDP(cnt, approx, eps * peri, true);
                   if (approx.rows === 4 && cv.isContourConvex(approx)) {
                     const d = approx.data32S;
-                    foundQuad = [
-                      { x: d[0] / scale, y: d[1] / scale },
-                      { x: d[2] / scale, y: d[3] / scale },
-                      { x: d[4] / scale, y: d[5] / scale },
-                      { x: d[6] / scale, y: d[7] / scale }
+                    quadPts = [
+                      { x: Math.max(0, Math.min(w, (d[0] - pad) / scale)), y: Math.max(0, Math.min(h, (d[1] - pad) / scale)) },
+                      { x: Math.max(0, Math.min(w, (d[2] - pad) / scale)), y: Math.max(0, Math.min(h, (d[3] - pad) / scale)) },
+                      { x: Math.max(0, Math.min(w, (d[4] - pad) / scale)), y: Math.max(0, Math.min(h, (d[5] - pad) / scale)) },
+                      { x: Math.max(0, Math.min(w, (d[6] - pad) / scale)), y: Math.max(0, Math.min(h, (d[7] - pad) / scale)) }
                     ];
                     approx.delete();
                     break;
                   }
                   // If approx has 5 to 10 vertices, find the 4 outermost vertices that maximize quad area
-                  if (approx.rows >= 5 && approx.rows <= 10 && !foundQuad) {
+                  if (approx.rows >= 5 && approx.rows <= 10 && !quadPts) {
                     const polyPts = [];
                     for (let p = 0; p < approx.rows; p++) {
                       polyPts.push({
-                        x: approx.data32S[p * 2] / scale,
-                        y: approx.data32S[p * 2 + 1] / scale
+                        x: Math.max(0, Math.min(w, (approx.data32S[p * 2] - pad) / scale)),
+                        y: Math.max(0, Math.min(h, (approx.data32S[p * 2 + 1] - pad) / scale))
                       });
                     }
                     const best4 = findBestQuadFromPoints(polyPts);
                     if (best4 && best4.length === 4) {
-                      foundQuad = best4;
+                      quadPts = best4;
                     }
                   }
                   approx.delete();
-                  if (foundQuad) break;
+                  if (quadPts) break;
                 }
 
-                // Pass B: Extract 4 best corners from convex hull vertices
-                if (!foundQuad && hull.rows >= 4) {
-                  const hullPts = [];
-                  const step = Math.max(1, Math.floor(hull.rows / 12));
-                  for (let j = 0; j < hull.rows; j += step) {
-                    hullPts.push({
-                      x: hull.data32S[j * 2] / scale,
-                      y: hull.data32S[j * 2 + 1] / scale
-                    });
-                  }
-                  const best4 = findBestQuadFromPoints(hullPts);
-                  if (best4 && best4.length === 4) {
-                    foundQuad = best4;
-                  }
-                }
-
-                // Pass C: Fallback to minAreaRect corners
-                if (!foundQuad) {
+                // Pass B: Fallback to rotated bounding rectangle (minAreaRect)
+                if (!quadPts) {
                   try {
                     const rect = cv.minAreaRect(cnt);
                     const angle = (rect.angle * Math.PI) / 180;
                     const cos = Math.cos(angle), sin = Math.sin(angle);
                     const hw = rect.size.width / 2, hh = rect.size.height / 2;
                     const cx = rect.center.x, cy = rect.center.y;
-                    foundQuad = [
-                      { x: (cx - hw * cos + hh * sin) / scale, y: (cy - hw * sin - hh * cos) / scale },
-                      { x: (cx + hw * cos + hh * sin) / scale, y: (cy + hw * sin - hh * cos) / scale },
-                      { x: (cx + hw * cos - hh * sin) / scale, y: (cy + hw * sin + hh * cos) / scale },
-                      { x: (cx - hw * cos - hh * sin) / scale, y: (cy - hw * sin + hh * cos) / scale }
+                    quadPts = [
+                      { x: Math.max(0, Math.min(w, (cx - hw * cos + hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy - hw * sin - hh * cos - pad) / scale)) },
+                      { x: Math.max(0, Math.min(w, (cx + hw * cos + hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy + hw * sin - hh * cos - pad) / scale)) },
+                      { x: Math.max(0, Math.min(w, (cx + hw * cos - hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy + hw * sin + hh * cos - pad) / scale)) },
+                      { x: Math.max(0, Math.min(w, (cx - hw * cos - hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy - hw * sin + hh * cos - pad) / scale)) }
                     ];
-                  } catch (e) {}
+                  } catch (err) {}
                 }
 
-                if (foundQuad) {
-                  maxArea = area;
-                  bestQuad = orderQuadPoints(foundQuad);
+                if (quadPts && area > bestScore) {
+                  bestScore = area;
+                  bestQuad = orderQuadPoints(quadPts);
                 }
-
-                hull.delete();
               }
               cnt.delete();
             }
@@ -1070,51 +1057,53 @@
 
           // 1. Otsu threshold with morphological closing (Best for white paper on desk)
           const otsu = new cv.Mat();
-          cv.threshold(blurred, otsu, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
-          const k9 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(9, 9));
-          cv.morphologyEx(otsu, otsu, cv.MORPH_CLOSE, k9);
+          cv.threshold(padded, otsu, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+          const k15 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(15, 15));
+          cv.morphologyEx(otsu, otsu, cv.MORPH_CLOSE, k15);
           evaluateMask(otsu);
+
+          // Inverted Otsu if paper is dark
           if (!bestQuad) {
-            cv.bitwise_not(otsu, otsu);
-            evaluateMask(otsu);
+            const otsuInv = new cv.Mat();
+            cv.bitwise_not(otsu, otsuInv);
+            evaluateMask(otsuInv);
+            otsuInv.delete();
           }
-          otsu.delete(); k9.delete();
+          otsu.delete();
 
           // 2. Canny edge detector with morphological closing (For edge contrast between paper and desk)
           if (!bestQuad) {
             const edges = new cv.Mat();
-            cv.Canny(blurred, edges, 35, 120);
-            const k5 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(7, 7));
-            cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, k5);
-            cv.dilate(edges, edges, k5);
+            cv.Canny(padded, edges, 25, 100);
+            const k9 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(9, 9));
+            cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, k9);
+            cv.dilate(edges, edges, k9);
             evaluateMask(edges);
-            edges.delete(); k5.delete();
+            edges.delete(); k9.delete();
           }
 
           // 3. Adaptive threshold (For uneven lighting / desk shadows)
           if (!bestQuad) {
             const adap = new cv.Mat();
-            cv.adaptiveThreshold(blurred, adap, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 25, 7);
-            const k7 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(7, 7));
-            cv.morphologyEx(adap, adap, cv.MORPH_CLOSE, k7);
+            cv.adaptiveThreshold(padded, adap, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 5);
+            cv.morphologyEx(adap, adap, cv.MORPH_CLOSE, k15);
             evaluateMask(adap);
             if (!bestQuad) {
-              cv.bitwise_not(adap, adap);
-              evaluateMask(adap);
+              const adapInv = new cv.Mat();
+              cv.bitwise_not(adap, adapInv);
+              evaluateMask(adapInv);
+              adapInv.delete();
             }
-            adap.delete(); k7.delete();
+            adap.delete();
           }
+
+          k15.delete();
 
           if (bestQuad) {
-            detected = {
-              tl: { x: Math.max(0, Math.min(w, Math.round(bestQuad.tl.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.tl.y))) },
-              tr: { x: Math.max(0, Math.min(w, Math.round(bestQuad.tr.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.tr.y))) },
-              br: { x: Math.max(0, Math.min(w, Math.round(bestQuad.br.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.br.y))) },
-              bl: { x: Math.max(0, Math.min(w, Math.round(bestQuad.bl.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.bl.y))) }
-            };
+            detected = bestQuad;
           }
 
-          src.delete(); gray.delete(); blurred.delete();
+          src.delete(); gray.delete(); blurred.delete(); padded.delete();
         } catch (e) {
           console.warn('OpenCV corner detection error: ', e);
         }
@@ -1188,32 +1177,32 @@
       const topVals = [];
       const botVals = [];
 
-      const linesY = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85].map(p => Math.round(dh * p));
-      const linesX = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85].map(p => Math.round(dw * p));
+      const linesY = [0.12, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.88].map(p => Math.round(dh * p));
+      const linesX = [0.12, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.88].map(p => Math.round(dw * p));
 
       linesY.forEach(y => {
-        let maxGrad = 20, bestX = -1;
+        let maxGrad = 18, bestX = -1;
         for (let x = 4; x < dw * 0.45; x++) {
           const idx0 = (y * dw + x - 2) * 4;
           const idx1 = (y * dw + x + 2) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
           const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
             maxGrad = grad;
             bestX = x;
           }
         }
         if (bestX > 0) leftVals.push(bestX / scale);
 
-        maxGrad = 20; bestX = -1;
+        maxGrad = 18; bestX = -1;
         for (let x = dw - 5; x > dw * 0.55; x--) {
           const idx0 = (y * dw + x + 2) * 4;
           const idx1 = (y * dw + x - 2) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
           const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
             maxGrad = grad;
             bestX = x;
           }
@@ -1222,28 +1211,28 @@
       });
 
       linesX.forEach(x => {
-        let maxGrad = 20, bestY = -1;
+        let maxGrad = 18, bestY = -1;
         for (let y = 4; y < dh * 0.45; y++) {
           const idx0 = ((y - 2) * dw + x) * 4;
           const idx1 = ((y + 2) * dw + x) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
           const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
             maxGrad = grad;
             bestY = y;
           }
         }
         if (bestY > 0) topVals.push(bestY / scale);
 
-        maxGrad = 20; bestY = -1;
+        maxGrad = 18; bestY = -1;
         for (let y = dh - 5; y > dh * 0.55; y--) {
           const idx0 = ((y + 2) * dw + x) * 4;
           const idx1 = ((y - 2) * dw + x) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
           const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
             maxGrad = grad;
             bestY = y;
           }
@@ -1273,12 +1262,12 @@
         }
       }
 
-      // Safe fallback: 96% inner frame so handles are clearly visible and draggable
+      // CamScanner Pro Default Inset: 5% inner frame so handles are elegantly positioned and easy to drag
       return {
-        tl: { x: Math.round(w * 0.02), y: Math.round(h * 0.02) },
-        tr: { x: Math.round(w * 0.98), y: Math.round(h * 0.02) },
-        br: { x: Math.round(w * 0.98), y: Math.round(h * 0.98) },
-        bl: { x: Math.round(w * 0.02), y: Math.round(h * 0.98) }
+        tl: { x: Math.round(w * 0.05), y: Math.round(h * 0.05) },
+        tr: { x: Math.round(w * 0.95), y: Math.round(h * 0.05) },
+        br: { x: Math.round(w * 0.95), y: Math.round(h * 0.95) },
+        bl: { x: Math.round(w * 0.05), y: Math.round(h * 0.95) }
       };
     }
 
@@ -1382,21 +1371,26 @@
     // ----------------------------------------------------
     let cropCanvasScale = 1;
 
+    let lastPointerImgPt = null;
+
     function setupCropCanvas() {
       const canvas = document.getElementById('crop-canvas');
       const stage = document.getElementById('crop-stage');
       if (!canvas || !stage || !rawCropImage) return;
 
-      const stageWidth = stage.clientWidth - 16;
-      const stageHeight = stage.clientHeight - 16;
+      const modal = document.getElementById('crop-modal');
+      if (modal) modal.offsetHeight;
+
+      const stageWidth = (stage.clientWidth || window.innerWidth) - 20;
+      const stageHeight = (stage.clientHeight || (window.innerHeight - 140)) - 20;
       const imgW = rawCropImage.naturalWidth || rawCropImage.width;
       const imgH = rawCropImage.naturalHeight || rawCropImage.height;
 
       const scale = Math.min(stageWidth / imgW, stageHeight / imgH);
-      cropCanvasScale = scale;
+      cropCanvasScale = Math.max(0.01, scale);
 
-      canvas.width = Math.round(imgW * scale);
-      canvas.height = Math.round(imgH * scale);
+      canvas.width = Math.round(imgW * cropCanvasScale);
+      canvas.height = Math.round(imgH * cropCanvasScale);
 
       // Event listeners for touch and pointer
       canvas.onpointerdown = handleCropPointerDown;
@@ -1430,14 +1424,14 @@
       ctx.clearRect(0, 0, cw, ch);
       ctx.drawImage(rawCropImage, 0, 0, cw, ch);
 
-      // Dark translucent overlay outside the quad
+      // Dark translucent overlay outside the quad (CamScanner style)
       const stl = getScreenPoint(cropCorners.tl);
       const str = getScreenPoint(cropCorners.tr);
       const sbr = getScreenPoint(cropCorners.br);
       const sbl = getScreenPoint(cropCorners.bl);
 
       ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
       ctx.beginPath();
       ctx.rect(0, 0, cw, ch);
       // Cut out quad
@@ -1449,7 +1443,7 @@
       ctx.fill('evenodd');
       ctx.restore();
 
-      // Interior 3x3 rule-of-thirds grid (CamScanner style)
+      // Interior 3x3 rule-of-thirds grid (CamScanner Pro style)
       ctx.save();
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       ctx.lineWidth = 1;
@@ -1482,7 +1476,8 @@
       // Draw quadrilateral border (CamScanner Glowing Emerald)
       ctx.save();
       ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(stl.x, stl.y);
       ctx.lineTo(str.x, str.y);
@@ -1492,7 +1487,7 @@
       ctx.stroke();
       ctx.restore();
 
-      // Draw 4 corner handles
+      // Draw 4 corner handles (CamScanner Glowing Emerald Rings)
       const corners = [
         { pt: stl, id: 'tl' },
         { pt: str, id: 'tr' },
@@ -1502,14 +1497,14 @@
 
       corners.forEach(c => {
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(16, 185, 129, 0.6)';
+        ctx.shadowBlur = 10;
         // Outer white ring
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(c.pt.x, c.pt.y, 14, 0, Math.PI * 2);
         ctx.fill();
-        // Inner emerald circle
+        // Inner CamScanner vibrant emerald circle
         ctx.fillStyle = '#10b981';
         ctx.beginPath();
         ctx.arc(c.pt.x, c.pt.y, 10, 0, Math.PI * 2);
@@ -1522,25 +1517,31 @@
         ctx.restore();
       });
 
-      // Draw 4 edge midpoint handles
+      // Draw 4 edge midpoint handles (CamScanner Capsule Pills)
       const midpoints = [
-        { pt: { x: (stl.x + str.x) / 2, y: (stl.y + str.y) / 2 }, id: 'top' },
-        { pt: { x: (str.x + sbr.x) / 2, y: (str.y + sbr.y) / 2 }, id: 'right' },
-        { pt: { x: (sbl.x + sbr.x) / 2, y: (sbl.y + sbr.y) / 2 }, id: 'bottom' },
-        { pt: { x: (stl.x + sbl.x) / 2, y: (stl.y + sbl.y) / 2 }, id: 'left' }
+        { pt: { x: (stl.x + str.x) / 2, y: (stl.y + str.y) / 2 }, id: 'top', w: 24, h: 8 },
+        { pt: { x: (str.x + sbr.x) / 2, y: (str.y + sbr.y) / 2 }, id: 'right', w: 8, h: 24 },
+        { pt: { x: (sbl.x + sbr.x) / 2, y: (sbl.y + sbr.y) / 2 }, id: 'bottom', w: 24, h: 8 },
+        { pt: { x: (stl.x + sbl.x) / 2, y: (stl.y + sbl.y) / 2 }, id: 'left', w: 8, h: 24 }
       ];
 
       midpoints.forEach(m => {
         ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = 6;
         ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(0,0,0,0.3)';
-        ctx.shadowBlur = 4;
         ctx.beginPath();
-        ctx.arc(m.pt.x, m.pt.y, 6.5, 0, Math.PI * 2);
+        if (ctx.roundRect) {
+          ctx.roundRect(m.pt.x - m.w / 2, m.pt.y - m.h / 2, m.w, m.h, Math.min(m.w, m.h) / 2);
+        } else {
+          ctx.rect(m.pt.x - m.w / 2, m.pt.y - m.h / 2, m.w, m.h);
+        }
         ctx.fill();
+
+        // Emerald accent dot in the center of the capsule
         ctx.fillStyle = '#10b981';
         ctx.beginPath();
-        ctx.arc(m.pt.x, m.pt.y, 4, 0, Math.PI * 2);
+        ctx.arc(m.pt.x, m.pt.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       });
@@ -1558,8 +1559,8 @@
         { id: 'bl', pt: getScreenPoint(cropCorners.bl) }
       ];
 
-      // Touch tolerance radius (generous 36px for easy touch on phone)
-      let minDist = 36;
+      // Touch tolerance radius (generous 38px for easy touch on phone)
+      let minDist = 38;
       let target = null;
 
       corners.forEach(c => {
@@ -1572,17 +1573,16 @@
 
       // Check midpoints if no corner touched
       if (!target) {
-        const stl = corners[0].pt; const str = corners[1].pt;
-        const sbr = corners[2].pt; const sbl = corners[3].pt;
+        const stl = corners[0].pt, str = corners[1].pt, sbr = corners[2].pt, sbl = corners[3].pt;
         const mids = [
-          { id: 'top', pt: { x: (stl.x + str.x)/2, y: (stl.y + str.y)/2 } },
-          { id: 'right', pt: { x: (str.x + sbr.x)/2, y: (str.y + sbr.y)/2 } },
-          { id: 'bottom', pt: { x: (sbl.x + sbr.x)/2, y: (sbl.y + sbr.y)/2 } },
-          { id: 'left', pt: { x: (stl.x + sbl.x)/2, y: (stl.y + sbl.y)/2 } }
+          { id: 'top', pt: { x: (stl.x + str.x) / 2, y: (stl.y + str.y) / 2 } },
+          { id: 'right', pt: { x: (str.x + sbr.x) / 2, y: (str.y + sbr.y) / 2 } },
+          { id: 'bottom', pt: { x: (sbl.x + sbr.x) / 2, y: (sbl.y + sbr.y) / 2 } },
+          { id: 'left', pt: { x: (stl.x + sbl.x) / 2, y: (stl.y + sbl.y) / 2 } }
         ];
         mids.forEach(m => {
           const d = Math.hypot(m.pt.x - sx, m.pt.y - sy);
-          if (d < 30) {
+          if (d < 32) {
             target = m.id;
           }
         });
@@ -1590,8 +1590,10 @@
 
       if (target) {
         activeDragPoint = target;
-        e.target.setPointerCapture(e.pointerId);
+        lastPointerImgPt = getImagePoint({ x: sx, y: sy });
+        try { e.target.setPointerCapture(e.pointerId); } catch(err){}
         updateLoupe(e.clientX, e.clientY);
+        if (navigator.vibrate) navigator.vibrate(10);
       }
     }
 
@@ -1600,24 +1602,38 @@
       const rect = document.getElementById('crop-canvas').getBoundingClientRect();
       const sx = e.clientX - rect.left;
       const sy = e.clientY - rect.top;
-      const imgPt = getImagePoint({ x: sx, y: sy });
+      const currentImgPt = getImagePoint({ x: sx, y: sy });
+      const imgW = rawCropImage.naturalWidth || rawCropImage.width;
+      const imgH = rawCropImage.naturalHeight || rawCropImage.height;
+
+      const clampPt = p => ({
+        x: Math.max(0, Math.min(imgW, p.x)),
+        y: Math.max(0, Math.min(imgH, p.y))
+      });
 
       if (['tl', 'tr', 'br', 'bl'].includes(activeDragPoint)) {
-        cropCorners[activeDragPoint] = imgPt;
-      } else if (activeDragPoint === 'top') {
-        cropCorners.tl.y = imgPt.y;
-        cropCorners.tr.y = imgPt.y;
-      } else if (activeDragPoint === 'bottom') {
-        cropCorners.bl.y = imgPt.y;
-        cropCorners.br.y = imgPt.y;
-      } else if (activeDragPoint === 'left') {
-        cropCorners.tl.x = imgPt.x;
-        cropCorners.bl.x = imgPt.x;
-      } else if (activeDragPoint === 'right') {
-        cropCorners.tr.x = imgPt.x;
-        cropCorners.br.x = imgPt.x;
+        cropCorners[activeDragPoint] = clampPt(currentImgPt);
+      } else if (lastPointerImgPt) {
+        // Parallel edge drag: move both endpoints by delta
+        const dx = currentImgPt.x - lastPointerImgPt.x;
+        const dy = currentImgPt.y - lastPointerImgPt.y;
+
+        if (activeDragPoint === 'top') {
+          cropCorners.tl = clampPt({ x: cropCorners.tl.x + dx, y: cropCorners.tl.y + dy });
+          cropCorners.tr = clampPt({ x: cropCorners.tr.x + dx, y: cropCorners.tr.y + dy });
+        } else if (activeDragPoint === 'bottom') {
+          cropCorners.bl = clampPt({ x: cropCorners.bl.x + dx, y: cropCorners.bl.y + dy });
+          cropCorners.br = clampPt({ x: cropCorners.br.x + dx, y: cropCorners.br.y + dy });
+        } else if (activeDragPoint === 'left') {
+          cropCorners.tl = clampPt({ x: cropCorners.tl.x + dx, y: cropCorners.tl.y + dy });
+          cropCorners.bl = clampPt({ x: cropCorners.bl.x + dx, y: cropCorners.bl.y + dy });
+        } else if (activeDragPoint === 'right') {
+          cropCorners.tr = clampPt({ x: cropCorners.tr.x + dx, y: cropCorners.tr.y + dy });
+          cropCorners.br = clampPt({ x: cropCorners.br.x + dx, y: cropCorners.br.y + dy });
+        }
       }
 
+      lastPointerImgPt = currentImgPt;
       drawCropCanvas();
       updateLoupe(e.clientX, e.clientY);
     }
@@ -1625,6 +1641,7 @@
     function handleCropPointerUp(e) {
       if (activeDragPoint) {
         activeDragPoint = null;
+        lastPointerImgPt = null;
         try { e.target.releasePointerCapture(e.pointerId); } catch(err){}
         const loupe = document.getElementById('crop-loupe');
         if (loupe) loupe.style.display = 'none';
@@ -1634,22 +1651,48 @@
     // CamScanner Floating Magnifier Loupe
     function updateLoupe(clientX, clientY) {
       const loupe = document.getElementById('crop-loupe');
-      if (!loupe || !activeDragPoint || !rawCropImage) return;
+      const stage = document.getElementById('crop-stage');
+      if (!loupe || !stage || !activeDragPoint || !rawCropImage) return;
+
+      const stageRect = stage.getBoundingClientRect();
+      const relX = clientX - stageRect.left;
+      const relY = clientY - stageRect.top;
 
       loupe.style.display = 'block';
-      // Float 80px above touch position so finger never blocks view
-      loupe.style.left = clientX + 'px';
-      loupe.style.top = (clientY - 85) + 'px';
+
+      // Float 95px above touch position; if near top edge, flip below finger
+      let loupeX = relX;
+      let loupeY = relY - 95;
+      const halfW = 65;
+      if (loupeY < halfW + 10) {
+        loupeY = relY + 95;
+      }
+      loupeX = Math.max(halfW + 8, Math.min(stageRect.width - halfW - 8, loupeX));
+
+      loupe.style.left = loupeX + 'px';
+      loupe.style.top = loupeY + 'px';
 
       const ctx = loupe.getContext('2d');
       const lw = loupe.width;
       const lh = loupe.height;
       ctx.clearRect(0, 0, lw, lh);
 
-      let targetImgPt = cropCorners[activeDragPoint] || getImagePoint({ x: clientX, y: clientY });
+      let targetImgPt = null;
+      if (['tl', 'tr', 'br', 'bl'].includes(activeDragPoint)) {
+        targetImgPt = cropCorners[activeDragPoint];
+      } else if (activeDragPoint === 'top') {
+        targetImgPt = { x: (cropCorners.tl.x + cropCorners.tr.x) / 2, y: (cropCorners.tl.y + cropCorners.tr.y) / 2 };
+      } else if (activeDragPoint === 'bottom') {
+        targetImgPt = { x: (cropCorners.bl.x + cropCorners.br.x) / 2, y: (cropCorners.bl.y + cropCorners.br.y) / 2 };
+      } else if (activeDragPoint === 'left') {
+        targetImgPt = { x: (cropCorners.tl.x + cropCorners.bl.x) / 2, y: (cropCorners.tl.y + cropCorners.bl.y) / 2 };
+      } else if (activeDragPoint === 'right') {
+        targetImgPt = { x: (cropCorners.tr.x + cropCorners.br.x) / 2, y: (cropCorners.tr.y + cropCorners.br.y) / 2 };
+      }
+      if (!targetImgPt) return;
 
-      // Draw 2.5x zoomed view around target point
-      const zoom = 2.5;
+      // Draw 2.4x zoomed view around target point
+      const zoom = 2.4;
       const srcW = lw / zoom;
       const srcH = lh / zoom;
       const srcX = targetImgPt.x - srcW / 2;
@@ -1657,21 +1700,31 @@
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(lw/2, lh/2, lw/2, 0, Math.PI * 2);
+      ctx.arc(lw / 2, lh / 2, lw / 2, 0, Math.PI * 2);
       ctx.clip();
       ctx.drawImage(rawCropImage, srcX, srcY, srcW, srcH, 0, 0, lw, lh);
 
-      // Target Crosshair
-      ctx.strokeStyle = '#22c55e';
-      ctx.lineWidth = 2;
+      // Target Crosshairs with center ring gap
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.8;
       ctx.beginPath();
       // Center ring
-      ctx.arc(lw/2, lh/2, 8, 0, Math.PI * 2);
+      ctx.arc(lw / 2, lh / 2, 8, 0, Math.PI * 2);
       ctx.stroke();
+
       // Cross lines
-      ctx.moveTo(lw/2, 0); ctx.lineTo(lw/2, lh);
-      ctx.moveTo(0, lh/2); ctx.lineTo(lw, lh/2);
+      ctx.beginPath();
+      ctx.moveTo(lw / 2, 0); ctx.lineTo(lw / 2, lh / 2 - 8);
+      ctx.moveTo(lw / 2, lh / 2 + 8); ctx.lineTo(lw / 2, lh);
+      ctx.moveTo(0, lh / 2); ctx.lineTo(lw / 2 - 8, lh / 2);
+      ctx.moveTo(lw / 2 + 8, lh / 2); ctx.lineTo(lw, lh / 2);
       ctx.stroke();
+
+      // Center white dot
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(lw / 2, lh / 2, 2.5, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
 
