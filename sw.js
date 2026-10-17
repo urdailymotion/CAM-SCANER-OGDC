@@ -1,9 +1,9 @@
 /**
  * Service Worker for OGDC PPA CamScanner Pro PWA
- * Version: 4.5
+ * Version: 4.6
  */
 
-const CACHE_NAME = 'ogdc-camscanner-cache-v4.5';
+const CACHE_NAME = 'ogdc-camscanner-cache-v4.6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
