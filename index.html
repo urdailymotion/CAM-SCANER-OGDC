@@ -666,6 +666,7 @@
   <script>
     window.openCvReady = false;
     function notifyOpenCvReady() {
+      if (window.openCvReady) return;
       window.openCvReady = true;
       const badge = document.getElementById('cv-badge');
       if (badge) {
@@ -675,6 +676,7 @@
       const modal = document.getElementById('crop-modal');
       if (modal && !modal.classList.contains('hidden') && typeof rawCropImage !== 'undefined' && rawCropImage && typeof autoDetectDocumentCorners === 'function') {
         autoDetectDocumentCorners();
+        if (typeof drawCropCanvas === 'function') drawCropCanvas();
       }
     }
     window.Module = {
@@ -682,6 +684,26 @@
         notifyOpenCvReady();
       }
     };
+    (function pollOpenCv() {
+      if (window.openCvReady) return;
+      if (window.cv) {
+        if (typeof window.cv.then === 'function') {
+          window.cv.then(function(m) {
+            window.cv = m;
+            notifyOpenCvReady();
+          });
+          return;
+        }
+        if (window.cv.Mat) {
+          notifyOpenCvReady();
+          return;
+        }
+        window.cv['onRuntimeInitialized'] = function() {
+          notifyOpenCvReady();
+        };
+      }
+      setTimeout(pollOpenCv, 150);
+    })();
   </script>
   <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.9.0-release.1/dist/opencv.js" onload="if(window.cv && window.cv.Mat) notifyOpenCvReady();"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1154,7 +1176,7 @@
       return bestQuad;
     }
 
-    // Pure Canvas Document Corner Detection (Contrast Gradient Scanner)
+    // Pure Canvas Document Corner Detection: Otsu Thresholding + Perimeter Scan + Rosebrock Tilted Quad Ordering
     function detectPaperCornersPureCanvas(image) {
       const w = image.naturalWidth || image.width;
       const h = image.naturalHeight || image.height;
@@ -1171,98 +1193,109 @@
       const imgData = ctx.getImageData(0, 0, dw, dh);
       const data = imgData.data;
 
-      // Scan horizontal and vertical contrast gradient lines
-      const leftVals = [];
-      const rightVals = [];
-      const topVals = [];
-      const botVals = [];
+      // 1. Calculate luminance histogram & total
+      const hist = new Int32Array(256);
+      const numPixels = dw * dh;
 
-      const linesY = [0.12, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.88].map(p => Math.round(dh * p));
-      const linesX = [0.12, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.88].map(p => Math.round(dw * p));
+      for (let i = 0; i < data.length; i += 4) {
+        const lum = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        hist[lum]++;
+      }
 
-      linesY.forEach(y => {
-        let maxGrad = 18, bestX = -1;
-        for (let x = 4; x < dw * 0.45; x++) {
-          const idx0 = (y * dw + x - 2) * 4;
-          const idx1 = (y * dw + x + 2) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
-          const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
-            maxGrad = grad;
-            bestX = x;
-          }
+      // 2. Otsu threshold calculation
+      let sum = 0;
+      for (let t = 0; t < 256; t++) sum += t * hist[t];
+      let sumB = 0, wB = 0, wF = 0, varMax = 0, thresh = 128;
+      for (let t = 0; t < 256; t++) {
+        wB += hist[t]; if (!wB) continue;
+        wF = numPixels - wB; if (!wF) break;
+        sumB += t * hist[t];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const v = wB * wF * (mB - mF) * (mB - mF);
+        if (v > varMax) {
+          varMax = v;
+          thresh = t;
         }
-        if (bestX > 0) leftVals.push(bestX / scale);
+      }
 
-        maxGrad = 18; bestX = -1;
-        for (let x = dw - 5; x > dw * 0.55; x--) {
-          const idx0 = (y * dw + x + 2) * 4;
-          const idx1 = (y * dw + x - 2) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
-          const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
-            maxGrad = grad;
-            bestX = x;
-          }
+      // Check if paper is bright (standard white paper on desk) or dark
+      let isPaperBright = true;
+      let countBright = 0;
+      for (let t = thresh; t < 256; t++) countBright += hist[t];
+      if (countBright < numPixels * 0.12 || countBright > numPixels * 0.88) {
+        const countDark = numPixels - countBright;
+        if (countDark >= numPixels * 0.12 && countDark <= numPixels * 0.88) {
+          isPaperBright = false;
         }
-        if (bestX > 0) rightVals.push(bestX / scale);
-      });
+      }
 
-      linesX.forEach(x => {
-        let maxGrad = 18, bestY = -1;
-        for (let y = 4; y < dh * 0.45; y++) {
-          const idx0 = ((y - 2) * dw + x) * 4;
-          const idx1 = ((y + 2) * dw + x) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
-          const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
-            maxGrad = grad;
-            bestY = y;
-          }
-        }
-        if (bestY > 0) topVals.push(bestY / scale);
-
-        maxGrad = 18; bestY = -1;
-        for (let y = dh - 5; y > dh * 0.55; y--) {
-          const idx0 = ((y + 2) * dw + x) * 4;
-          const idx1 = ((y - 2) * dw + x) * 4;
-          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0 + 1] + 0.114 * data[idx0 + 2];
-          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1 + 1] + 0.114 * data[idx1 + 2];
-          const grad = Math.abs(lum1 - lum0);
-          if (grad > maxGrad && (lum1 > lum0 || lum1 > 110)) {
-            maxGrad = grad;
-            bestY = y;
-          }
-        }
-        if (bestY > 0) botVals.push(bestY / scale);
-      });
-
-      const getMedian = arr => {
-        if (!arr.length) return null;
-        const s = arr.slice().sort((a, b) => a - b);
-        return s[Math.floor(s.length / 2)];
+      // 3. Scan boundary perimeter pixels of the paper
+      const edgePts = [];
+      const isPaper = (idx) => {
+        const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+        return isPaperBright ? (lum >= thresh) : (lum < thresh);
       };
 
-      const leftX = getMedian(leftVals);
-      const rightX = getMedian(rightVals);
-      const topY = getMedian(topVals);
-      const botY = getMedian(botVals);
+      // Scan rows
+      for (let y = 3; y < dh - 3; y += 3) {
+        let firstX = -1, lastX = -1;
+        for (let x = 3; x < dw - 3; x += 2) {
+          const idx = (y * dw + x) * 4;
+          if (isPaper(idx)) {
+            if (firstX === -1) firstX = x;
+            lastX = x;
+          }
+        }
+        if (firstX !== -1 && (lastX - firstX) > dw * 0.22) {
+          edgePts.push({ x: firstX, y }, { x: lastX, y });
+        }
+      }
 
-      if (leftX !== null && rightX !== null && topY !== null && botY !== null) {
-        if ((rightX - leftX) > w * 0.35 && (botY - topY) > h * 0.35) {
+      // Scan columns
+      for (let x = 3; x < dw - 3; x += 3) {
+        let firstY = -1, lastY = -1;
+        for (let y = 3; y < dh - 3; y += 2) {
+          const idx = (y * dw + x) * 4;
+          if (isPaper(idx)) {
+            if (firstY === -1) firstY = y;
+            lastY = y;
+          }
+        }
+        if (firstY !== -1 && (lastY - firstY) > dh * 0.22) {
+          edgePts.push({ x, y: firstY }, { x, y: lastY });
+        }
+      }
+
+      // If clear paper edges were found (at least 16 perimeter points)
+      if (edgePts.length >= 16) {
+        let minSum = Infinity, maxSum = -Infinity;
+        let minDiff = Infinity, maxDiff = -Infinity;
+        let tl = edgePts[0], br = edgePts[0], tr = edgePts[0], bl = edgePts[0];
+
+        edgePts.forEach(p => {
+          const s = p.x + p.y;
+          const d = p.y - p.x;
+          if (s < minSum) { minSum = s; tl = p; }
+          if (s > maxSum) { maxSum = s; br = p; }
+          if (d < minDiff) { minDiff = d; tr = p; }
+          if (d > maxDiff) { maxDiff = d; bl = p; }
+        });
+
+        const spanW = (tr.x - tl.x + br.x - bl.x) / 2;
+        const spanH = (bl.y - tl.y + br.y - tr.y) / 2;
+
+        if (spanW > dw * 0.22 && spanH > dh * 0.22) {
           return {
-            tl: { x: Math.max(0, Math.round(leftX)), y: Math.max(0, Math.round(topY)) },
-            tr: { x: Math.min(w, Math.round(rightX)), y: Math.max(0, Math.round(topY)) },
-            br: { x: Math.min(w, Math.round(rightX)), y: Math.min(h, Math.round(botY)) },
-            bl: { x: Math.max(0, Math.round(leftX)), y: Math.min(h, Math.round(botY)) }
+            tl: { x: Math.max(0, Math.min(w, Math.round(tl.x / scale))), y: Math.max(0, Math.min(h, Math.round(tl.y / scale))) },
+            tr: { x: Math.max(0, Math.min(w, Math.round(tr.x / scale))), y: Math.max(0, Math.min(h, Math.round(tr.y / scale))) },
+            br: { x: Math.max(0, Math.min(w, Math.round(br.x / scale))), y: Math.max(0, Math.min(h, Math.round(br.y / scale))) },
+            bl: { x: Math.max(0, Math.min(w, Math.round(bl.x / scale))), y: Math.max(0, Math.min(h, Math.round(bl.y / scale))) }
           };
         }
       }
 
-      // CamScanner Pro Default Inset: 5% inner frame so handles are elegantly positioned and easy to drag
+      // Safe CamScanner fallback: 5% inner frame
       return {
         tl: { x: Math.round(w * 0.05), y: Math.round(h * 0.05) },
         tr: { x: Math.round(w * 0.95), y: Math.round(h * 0.05) },
@@ -1844,24 +1877,66 @@
           srcMat.delete(); dstMat.delete(); srcQuad.delete(); dstQuad.delete(); transform.delete();
         } catch (e) {
           console.warn('OpenCV warp fallback: ', e);
-          fallbackCanvasCrop(canvas, image, quad, outW, outH);
+          fallbackCanvasWarp(canvas, image, quad, outW, outH);
         }
       } else {
-        fallbackCanvasCrop(canvas, image, quad, outW, outH);
+        fallbackCanvasWarp(canvas, image, quad, outW, outH);
       }
 
       return canvas;
     }
 
-    function fallbackCanvasCrop(canvas, image, quad, outW, outH) {
-      const minX = Math.max(0, Math.min(quad.tl.x, quad.bl.x));
-      const maxX = Math.min(image.naturalWidth || image.width, Math.max(quad.tr.x, quad.br.x));
-      const minY = Math.max(0, Math.min(quad.tl.y, quad.tr.y));
-      const maxY = Math.min(image.naturalHeight || image.height, Math.max(quad.bl.y, quad.br.y));
-      const cropW = Math.max(10, maxX - minX);
-      const cropH = Math.max(10, maxY - minY);
+    // Mathematical Perspective Straightening (Affine Triangle Warp without OpenCV)
+    function fallbackCanvasWarp(canvas, image, quad, outW, outH) {
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(image, minX, minY, cropW, cropH, 0, 0, outW, outH);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, outW, outH);
+
+      function renderTriangle(x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(u0, v0);
+        ctx.lineTo(u1, v1);
+        ctx.lineTo(u2, v2);
+        ctx.closePath();
+        ctx.clip();
+
+        const delta = x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1);
+        if (Math.abs(delta) < 1e-5) {
+          ctx.restore();
+          return;
+        }
+
+        const a = (u0 * (y1 - y2) + u1 * (y2 - y0) + u2 * (y0 - y1)) / delta;
+        const b = (u0 * (x2 - x1) + u1 * (x0 - x2) + u2 * (x1 - x0)) / delta;
+        const c = (u0 * (x1 * y2 - x2 * y1) + u1 * (x2 * y0 - x0 * y2) + u2 * (x0 * y1 - x1 * y0)) / delta;
+
+        const d = (v0 * (y1 - y2) + v1 * (y2 - y0) + v2 * (y0 - y1)) / delta;
+        const e = (v0 * (x2 - x1) + v1 * (x0 - x2) + v2 * (x1 - x0)) / delta;
+        const f = (v0 * (x1 * y2 - x2 * y1) + v1 * (x2 * y0 - x0 * y2) + v2 * (x0 * y1 - x1 * y0)) / delta;
+
+        ctx.transform(a, d, b, e, c, f);
+        ctx.drawImage(image, 0, 0);
+        ctx.restore();
+      }
+
+      renderTriangle(
+        quad.tl.x, quad.tl.y,
+        quad.tr.x, quad.tr.y,
+        quad.bl.x, quad.bl.y,
+        0, 0,
+        outW, 0,
+        0, outH
+      );
+
+      renderTriangle(
+        quad.tr.x, quad.tr.y,
+        quad.br.x, quad.br.y,
+        quad.bl.x, quad.bl.y,
+        outW, 0,
+        outW, outH,
+        0, outH
+      );
     }
 
     // Post-Warp Auto Desk Stripper: Automatically detects and cuts away any remaining table border
