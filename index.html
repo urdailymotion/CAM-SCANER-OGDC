@@ -1555,8 +1555,17 @@
           currentWarpedCanvas = warped;
           activeFilterMode = 'magic';
 
-          // 2. Terapkan filter Magic Color langsung tanpa modal perantara
-          const filtered = applyCamScannerFilter(warped, 'magic');
+          // Salin ke output canvas dengan latar putih solid bebas alpha
+          const outputCanvas = document.createElement('canvas');
+          outputCanvas.width = warped.width;
+          outputCanvas.height = warped.height;
+          const octx = outputCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+          octx.fillStyle = '#ffffff';
+          octx.fillRect(0, 0, warped.width, warped.height);
+          octx.drawImage(warped, 0, 0);
+
+          // 2. Terapkan filter Magic Color langsung menghasilkan putih bersih PDF
+          const filtered = applyCamScannerFilter(outputCanvas, 'magic');
           currentFilteredCanvas = filtered;
 
           // 3. Render ke JPEG berkualitas tinggi untuk PDF
@@ -2034,47 +2043,50 @@
 
         if (isMagic) {
           // Check for colored stamps, signatures, or seals (blue ink, red stamp)
-          if (chroma >= 18 && !isGray) {
+          if (chroma >= 14 && !isGray) {
             // VIBRANT STAMPS & SIGNATURES:
-            const avg = (r + g + b) / 3;
-            r = avg + (r - avg) * 1.40;
-            g = avg + (g - avg) * 1.40;
-            b = avg + (b - avg) * 1.40;
-            if (lum > 215) {
+            if (lum >= 190) {
               r = 255; g = 255; b = 255;
+            } else {
+              const avg = (r + g + b) / 3;
+              r = avg + (r - avg) * 1.50;
+              g = avg + (g - avg) * 1.50;
+              b = avg + (b - avg) * 1.50;
             }
           } else {
             // MONOCHROME / TEXT / LINES / PAPER
-            if (lum >= 222) {
-              // PURE WHITE PAPER (#FFFFFF)
+            if (lum >= 190) {
+              // PURE WHITE PAPER (#FFFFFF) - Selayaknya dokumen resmi PDF
               r = 255; g = 255; b = 255;
-            } else if (lum >= 208) {
+            } else if (lum >= 160) {
               // Smooth ramp into pure white
-              const t = (lum - 208) / 14;
-              r = r + (255 - r) * t;
-              g = g + (255 - g) * t;
-              b = b + (255 - b) * t;
+              const t = (lum - 160) / 30;
+              const factor = t * t * (3 - 2 * t);
+              r = Math.round(r + (255 - r) * factor);
+              g = Math.round(g + (255 - g) * factor);
+              b = Math.round(b + (255 - b) * factor);
             } else {
               // ANTI-FADE INK ENHANCEMENT:
-              // Faint printed text, headers, and handwriting are strengthened and darkened
-              const ratio = lum / 208.0;
-              const darkenFactor = Math.pow(ratio, 1.85);
-              r = r * darkenFactor;
-              g = g * darkenFactor;
-              b = b * darkenFactor;
+              // Teks cetak, tulisan tangan, garis tabel dibuat hitam pekat dan tajam
+              const ratio = lum / 160.0;
+              const darkenFactor = Math.pow(ratio, 1.45) * 0.92;
+              r = Math.round(r * darkenFactor);
+              g = Math.round(g * darkenFactor);
+              b = Math.round(b * darkenFactor);
             }
           }
         } else if (isGray) {
-          if (lum >= 222) {
+          if (lum >= 190) {
             r = 255; g = 255; b = 255;
-          } else if (lum >= 208) {
-            const t = (lum - 208) / 14;
-            r = r + (255 - r) * t;
+          } else if (lum >= 160) {
+            const t = (lum - 160) / 30;
+            const factor = t * t * (3 - 2 * t);
+            r = Math.round(lum + (255 - lum) * factor);
             g = r; b = r;
           } else {
-            const ratio = lum / 208.0;
-            const darkenFactor = Math.pow(ratio, 1.85);
-            r = lum * darkenFactor;
+            const ratio = lum / 160.0;
+            const darkenFactor = Math.pow(ratio, 1.45) * 0.92;
+            r = Math.round(lum * darkenFactor);
             g = r; b = r;
           }
         }
