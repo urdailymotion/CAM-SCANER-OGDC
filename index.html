@@ -397,17 +397,24 @@
   <div id="crop-modal" class="fixed inset-0 bg-black/95 z-50 flex-col justify-between hidden select-none">
     
     <!-- Top Crop Header -->
-    <div class="p-4 flex items-center justify-between text-white bg-slate-950/80 backdrop-blur-sm z-20">
-      <button onclick="cancelCrop()" class="text-slate-300 hover:text-white px-3 py-1.5 rounded-lg active:scale-90 text-sm font-semibold uppercase flex items-center gap-1.5">
-        <i class="fa-solid fa-xmark"></i> Batal
+    <div class="p-3 sm:p-4 flex items-center justify-between text-white bg-slate-950/80 backdrop-blur-sm z-20 gap-2">
+      <button onclick="cancelCrop()" class="text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg active:scale-90 text-xs font-semibold uppercase flex items-center gap-1 cursor-pointer shrink-0">
+        <i class="fa-solid fa-xmark"></i> <span>Batal</span>
       </button>
-      <div class="text-center">
-        <h3 class="font-extrabold uppercase text-sm tracking-wide">Sesuaikan Sudut</h3>
-        <p class="text-[10px] text-emerald-400 font-semibold uppercase">Tarik 4 Sudut Kertas</p>
+      <div class="text-center min-w-0">
+        <h3 class="font-extrabold uppercase text-xs sm:text-sm tracking-wide truncate">Sesuaikan Sudut</h3>
+        <p class="text-[9px] text-emerald-400 font-semibold uppercase truncate">Tarik 4 Sudut Kertas</p>
       </div>
-      <button onclick="applyCropAndWarp()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-emerald-600/40">
-        <span>Lanjut</span> <i class="fa-solid fa-arrow-right"></i>
-      </button>
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <!-- Tombol Lanjut & Foto Lembar Berikutnya (Batch Scan) -->
+        <button type="button" onclick="applyCropAndWarp('next_photo')" class="bg-teal-600 hover:bg-teal-500 active:scale-95 text-white font-bold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1 shadow-md shadow-teal-600/30 cursor-pointer" title="Simpan Magic Color & Langsung Foto Halaman Berikutnya">
+          <i class="fa-solid fa-camera"></i> <span>+ Foto Lagi</span>
+        </button>
+        <!-- Tombol Selesai (Langsung Bersih ke Lembar Kerja) -->
+        <button type="button" onclick="applyCropAndWarp('finish')" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1 shadow-lg shadow-emerald-600/40 cursor-pointer" title="Simpan Magic Color & Selesai">
+          <i class="fa-solid fa-check"></i> <span>Selesai</span>
+        </button>
+      </div>
     </div>
 
     <!-- Center Crop Canvas Area -->
@@ -984,7 +991,7 @@
           for (let i = 0; i < contours.size(); i++) {
             const cnt = contours.get(i);
             const area = cv.contourArea(cnt);
-            if (area > totalArea * 0.18 && area < totalArea * 0.94 && area > maxArea) {
+            if (area > totalArea * 0.15 && area < totalArea * 0.99 && area > maxArea) {
               const peri = cv.arcLength(cnt, true);
               const approx = new cv.Mat();
               cv.approxPolyDP(cnt, approx, 0.03 * peri, true);
@@ -1004,18 +1011,12 @@
           }
 
           if (cvQuad) {
-            // Inset by 3.5% toward center to guarantee zero table borders
-            const cx = (cvQuad.tl.x + cvQuad.tr.x + cvQuad.br.x + cvQuad.bl.x) / 4;
-            const cy = (cvQuad.tl.y + cvQuad.tr.y + cvQuad.br.y + cvQuad.bl.y) / 4;
-            const inPt = p => ({
-              x: Math.max(0, Math.min(w, Math.round(p.x + (cx - p.x) * 0.035))),
-              y: Math.max(0, Math.min(h, Math.round(p.y + (cy - p.y) * 0.035)))
-            });
+            // Keep 100% outer perimeter of document without artificial inward clipping
             detected = {
-              tl: inPt(cvQuad.tl),
-              tr: inPt(cvQuad.tr),
-              br: inPt(cvQuad.br),
-              bl: inPt(cvQuad.bl)
+              tl: { x: Math.max(0, Math.min(w, Math.round(cvQuad.tl.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.tl.y))) },
+              tr: { x: Math.max(0, Math.min(w, Math.round(cvQuad.tr.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.tr.y))) },
+              br: { x: Math.max(0, Math.min(w, Math.round(cvQuad.br.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.br.y))) },
+              bl: { x: Math.max(0, Math.min(w, Math.round(cvQuad.bl.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.bl.y))) }
             };
           }
 
@@ -1131,25 +1132,23 @@
       const botY = getMedian(botVals);
 
       if (leftX !== null && rightX !== null && topY !== null && botY !== null) {
-        if ((rightX - leftX) > w * 0.40 && (botY - topY) > h * 0.40) {
-          // Inset 3.5% inwards to ensure ZERO desk borders
-          const insetX = (rightX - leftX) * 0.035;
-          const insetY = (botY - topY) * 0.035;
+        if ((rightX - leftX) > w * 0.35 && (botY - topY) > h * 0.35) {
+          // Exact outer boundary without destructive 3.5% shrinkage
           return {
-            tl: { x: Math.max(0, Math.round(leftX + insetX)), y: Math.max(0, Math.round(topY + insetY)) },
-            tr: { x: Math.min(w, Math.round(rightX - insetX)), y: Math.max(0, Math.round(topY + insetY)) },
-            br: { x: Math.min(w, Math.round(rightX - insetX)), y: Math.min(h, Math.round(botY - insetY)) },
-            bl: { x: Math.max(0, Math.round(leftX + insetX)), y: Math.min(h, Math.round(botY - insetY)) }
+            tl: { x: Math.max(0, Math.round(leftX)), y: Math.max(0, Math.round(topY)) },
+            tr: { x: Math.min(w, Math.round(rightX)), y: Math.max(0, Math.round(topY)) },
+            br: { x: Math.min(w, Math.round(rightX)), y: Math.min(h, Math.round(botY)) },
+            bl: { x: Math.max(0, Math.round(leftX)), y: Math.min(h, Math.round(botY)) }
           };
         }
       }
 
-      // Safe fallback: 6% inset from image boundaries
+      // Safe fallback: 100% full frame bounds (guarantees zero clipping for A4 close-up photos)
       return {
-        tl: { x: w * 0.06, y: h * 0.06 },
-        tr: { x: w * 0.94, y: h * 0.06 },
-        br: { x: w * 0.94, y: h * 0.94 },
-        bl: { x: w * 0.06, y: h * 0.94 }
+        tl: { x: 0, y: 0 },
+        tr: { x: w, y: 0 },
+        br: { x: w, y: h },
+        bl: { x: 0, y: h }
       };
     }
 
@@ -1545,36 +1544,63 @@
     // ----------------------------------------------------
     // 7. PERSPECTIVE WARP & SHADOW REMOVER ENGINE
     // ----------------------------------------------------
-    function applyCropAndWarp() {
+    function applyCropAndWarp(action = 'finish') {
       if (!rawCropImage) return;
-      showProcessing('Meratakan Dokumen...', 'Menerapkan transformasi perspektif & memangkas sisa meja.');
+      showProcessing('Memproses Magic Color...', 'Meratakan dan membersihkan dokumen otomatis.');
 
       setTimeout(() => {
         try {
-          let warped = warpPerspectiveQuad(rawCropImage, cropCorners);
-
-          // AUTO-STRIP RESIDUAL DESK / TABLE BORDERS FROM WARPED CANVAS
-          warped = autoTrimDeskFromWarpedCanvas(warped);
-
+          // 1. Perspective Warp 100% outer document quad (NO DESTRUCTIVE TRIMMING)
+          const warped = warpPerspectiveQuad(rawCropImage, cropCorners);
           currentWarpedCanvas = warped;
           activeFilterMode = 'magic';
 
-          // Close crop modal, open filter modal
+          // 2. Terapkan filter Magic Color langsung tanpa modal perantara
+          const filtered = applyCamScannerFilter(warped, 'magic');
+          currentFilteredCanvas = filtered;
+
+          // 3. Render ke JPEG berkualitas tinggi untuk PDF
+          const finalizedDataUrl = filtered.toDataURL('image/jpeg', 0.94);
+          const isLandscape = filtered.width > filtered.height * 1.05;
+
+          const pageItem = {
+            dataUrl: finalizedDataUrl,
+            filterMode: 'magic',
+            isLandscape: isLandscape
+          };
+
+          const isEditing = (cropEditingPageIndex !== null && cropEditingPageIndex >= 0);
+          if (isEditing) {
+            scannedPages[cropEditingPageIndex] = pageItem;
+            showToast('Halaman ' + (cropEditingPageIndex + 1) + ' berhasil diperbarui!');
+            cropEditingPageIndex = null;
+          } else {
+            scannedPages.push(pageItem);
+            showToast('Halaman ' + scannedPages.length + ' siap dalam kualitas Magic Color!');
+          }
+
+          // 4. Tutup Crop Modal & reset
           document.getElementById('crop-modal').classList.add('hidden');
           document.getElementById('crop-modal').classList.remove('flex');
+          rawCropImage = null;
+          directPdfBase64 = null;
 
-          const filterModal = document.getElementById('filter-modal');
-          filterModal.classList.remove('hidden');
-          filterModal.classList.add('flex');
-
-          // Render with Magic Color
-          renderFilterPreview('magic');
+          // 5. Perbarui lembar kerja
+          updateWorkspaceUi();
           hideProcessing();
+
+          // 6. Alur Beruntun: jika memilih + Foto Lagi, langsung picu kamera untuk lembar berikutnya!
+          if (action === 'next_photo' && !isEditing) {
+            setTimeout(() => {
+              const camInput = document.getElementById('camera-input');
+              if (camInput) camInput.click();
+            }, 250);
+          }
         } catch (err) {
           hideProcessing();
-          alert('Gagal meratakan dokumen: ' + err.message);
+          alert('Gagal memproses dokumen: ' + err.message);
         }
-      }, 60);
+      }, 50);
     }
 
     function warpPerspectiveQuad(image, quad) {

@@ -20,14 +20,16 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
   - Akses pintasan langsung ke **Database Google Sheets** (`Data_Transaksi`) dan **Folder Google Drive** (Arsip PDF).
   - Dilindungi sistem **Autentikasi PIN Keamanan (`0000`)** sebelum membuka akses penyimpanan.
 
-- **Otsu Auto-Crop & Convex Hull Edge Detection**:
-  - Deteksi 4 sudut fisik lembar kertas secara otomatis (tidak memotong acak atau mengambil latar meja).
-  - Menghilangkan gangguan bayangan tangan, jari penahan, dan garis tabel internal.
-  - Dilengkapi fitur *Automatic Inset* (3.5%) untuk mengunci sudut persis di atas kertas putih.
+- **Zero-Clipping Paper Bounds & Perimeter Preservation**:
+  - Menjamin 100% isi kertas A4 atau ukuran lebih besar tetap utuh (kop surat, tabel terluar, nomor BA, dan tanda tangan tidak terpotong).
+  - Menghapus pemotongan destruktif (*auto-trim*) dan penyusutan margin (*inset*), mengandalkan pemutihan latar belakang Magic Color.
+  - Default otomatis mengunci tepat di tepi fisik terluar dokumen (100% area terjaga).
 
-- **Post-Warp Auto Desk Stripper**:
-  - Otomatis memindai 4 tepi terluar gambar hasil warp dan memangkas sisa meja kayu / mousepad hitam yang tersisa.
-  - Tombol manual *"Kikis Sisa Meja"* (4.5% sekali klik) di layar filter.
+- **Instant 1-Click & Multi-Page Continuous Scan (Alur Cepat Beruntun)**:
+  - Tombol **"+ Foto Lagi"**: Otomatis menerapkan Magic Color pada halaman saat ini dan langsung memicu kamera untuk mengambil foto halaman ke-2, ke-3, dst.
+  - Tombol **"Selesai"**: Otomatis menerapkan Magic Color dan langsung menampilkan pratinjau halaman bersih di lembar kerja PDF.
+  - Tidak perlu lagi mengklik tombol "Selesai" berulang kali di layar filter.
+  - Pilihan filter (Magic Color, B&W, Grayscale, Asli) tetap dapat disesuaikan kapan saja di lembar kerja akhir.
 
 - **Magic Color Filter & Anti-Fade Engine**:
   - *Morphological Background Illumination Division*: Menghapus bayangan tangan, bayangan ponsel, dan gradasi pencahayaan ruangan secara merata.
