@@ -14,6 +14,12 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
   - Dilengkapi panduan khusus untuk pengguna iOS Safari (*Add to Home Screen*) dan Android/Desktop.
   - Caching aset melalui Service Worker (`sw.js`) dan Web App Manifest (`manifest.json`).
 
+- **Auto-Hide Sidebar Drawer & PIN Protected Shortcuts**:
+  - Tombol hamburger menu di header untuk membuka navigasi samping (*slide-over drawer*).
+  - Dilengkapi fitur *Auto-Hide* (otomatis tertutup saat klik overlay luar, tombol silang, atau navigasi).
+  - Akses pintasan langsung ke **Database Google Sheets** (`Data_Transaksi`) dan **Folder Google Drive** (Arsip PDF).
+  - Dilindungi sistem **Autentikasi PIN Keamanan (`0000`)** sebelum membuka akses penyimpanan.
+
 - **Otsu Auto-Crop & Convex Hull Edge Detection**:
   - Deteksi 4 sudut fisik lembar kertas secara otomatis (tidak memotong acak atau mengambil latar meja).
   - Menghilangkan gangguan bayangan tangan, jari penahan, dan garis tabel internal.

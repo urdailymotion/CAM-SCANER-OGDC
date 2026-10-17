@@ -44,6 +44,13 @@ function doPost(e) {
       result = updateTransaction(payload.rowId, payload.formData);
     } else if (action === 'deleteTransaction') {
       result = deleteTransaction(payload.rowId, payload.pdfUrl);
+    } else if (action === 'getSystemLinks') {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      result = {
+        success: true,
+        spreadsheetUrl: ss ? ss.getUrl() : null,
+        folderUrl: "https://drive.google.com/drive/folders/" + CONFIG.FOLDER_ID
+      };
     } else {
       result = { success: false, message: 'Action tidak dikenal: ' + action };
     }

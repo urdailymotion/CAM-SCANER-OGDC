@@ -128,15 +128,19 @@
   <!-- TOP HEADER -->
   <header class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-sm border-b border-slate-200/80 dark:border-slate-800 fixed top-0 left-0 right-0 z-40 transition-colors">
     <div class="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="bg-gradient-to-tr from-emerald-600 to-teal-500 text-white p-2.5 rounded-xl shadow-md shadow-emerald-500/20">
-          <i class="fa-solid fa-camera-viewfinder text-lg"></i>
+      <div class="flex items-center gap-2">
+        <!-- Sidebar Toggle Button -->
+        <button id="sidebar-toggle-btn" onclick="openSidebar()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0" aria-label="Buka Menu Sidebar" title="Buka Menu">
+          <i class="fa-solid fa-bars text-sm"></i>
+        </button>
+        <div class="bg-gradient-to-tr from-emerald-600 to-teal-500 text-white p-2 rounded-xl shadow-md shadow-emerald-500/20 shrink-0">
+          <i class="fa-solid fa-camera-viewfinder text-sm"></i>
         </div>
         <div>
-          <h1 class="font-extrabold text-base tracking-tight text-slate-800 dark:text-white uppercase flex items-center gap-1.5">
+          <h1 class="font-extrabold text-xs sm:text-sm tracking-tight text-slate-800 dark:text-white uppercase flex items-center gap-1">
             OGDC PPA <span class="text-emerald-600 dark:text-emerald-400 font-black">SCANNER</span>
           </h1>
-          <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">CamScanner Pro Edition</p>
+          <p class="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">CamScanner Pro</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -2849,6 +2853,103 @@
       }
     }
 
+    // ----------------------------------------------------
+    // SIDEBAR AUTO-HIDE & PIN-PROTECTED ACCESS (PIN 0000)
+    // ----------------------------------------------------
+    let pendingSecureAction = null;
+    const SECURE_LINKS = {
+      spreadsheet: "https://docs.google.com/spreadsheets/d/1WkqPkRHwkXdLROfGy9XRrVc-vataf4MOuR2dWjVUDCA/edit",
+      drive: "https://drive.google.com/drive/folders/1XzlR-X0dNjqxnoJM_ULdbFSYP9QlpoUm"
+    };
+
+    function openSidebar() {
+      const drawer = document.getElementById('sidebar-drawer');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (drawer && overlay) {
+        overlay.classList.remove('opacity-0', 'pointer-events-none');
+        overlay.classList.add('opacity-100', 'pointer-events-auto');
+        drawer.classList.remove('-translate-x-full');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    function closeSidebar() {
+      const drawer = document.getElementById('sidebar-drawer');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (drawer && overlay) {
+        overlay.classList.remove('opacity-100', 'pointer-events-auto');
+        overlay.classList.add('opacity-0', 'pointer-events-none');
+        drawer.classList.add('-translate-x-full');
+        document.body.style.overflow = '';
+      }
+    }
+
+    function requestPinAccess(type) {
+      pendingSecureAction = type;
+      closeSidebar();
+
+      const modal = document.getElementById('secure-pin-modal');
+      const title = document.getElementById('secure-pin-title');
+      const desc = document.getElementById('secure-pin-desc');
+      const errorEl = document.getElementById('secure-pin-error');
+      const input = document.getElementById('secure-pin-input');
+
+      if (type === 'spreadsheet') {
+        title.textContent = 'Akses Database Sheets';
+        desc.textContent = 'Masukkan PIN keamanan untuk membuka Spreadsheet Data_Transaksi.';
+      } else if (type === 'drive') {
+        title.textContent = 'Akses Folder Google Drive';
+        desc.textContent = 'Masukkan PIN keamanan untuk membuka Arsip PDF di Google Drive.';
+      }
+
+      if (errorEl) errorEl.classList.add('hidden');
+      if (input) input.value = '';
+      
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => { if (input) input.focus(); }, 150);
+      }
+    }
+
+    function closePinModal() {
+      const modal = document.getElementById('secure-pin-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+      pendingSecureAction = null;
+    }
+
+    function submitPinAccess() {
+      const input = document.getElementById('secure-pin-input');
+      const errorEl = document.getElementById('secure-pin-error');
+      const pin = input ? input.value.trim() : '';
+
+      if (pin === '0000') {
+        const targetUrl = SECURE_LINKS[pendingSecureAction];
+        closePinModal();
+        if (targetUrl) {
+          showToast('PIN Benar! Membuka halaman...');
+          window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        if (errorEl) errorEl.classList.remove('hidden');
+        if (input) {
+          input.value = '';
+          input.focus();
+        }
+      }
+    }
+
+    // Keyboard navigation (Esc to close)
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeSidebar();
+        closePinModal();
+      }
+    });
+
     // Inisialisasi Riwayat di Awal
     document.addEventListener('DOMContentLoaded', function() {
       fetchHistory(true);
@@ -2917,6 +3018,143 @@
       </div>
 
       <button onclick="closePwaGuideModal()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl uppercase tracking-wider text-xs">Saya Mengerti</button>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- SIDEBAR AUTO-HIDE DRAWER & OVERLAY             -->
+  <!-- ============================================== -->
+  <div id="sidebar-overlay" onclick="closeSidebar()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+
+  <aside id="sidebar-drawer" class="fixed top-0 bottom-0 left-0 w-80 max-w-[85vw] bg-white dark:bg-slate-900 z-50 shadow-2xl border-r border-slate-200/80 dark:border-slate-800 transform -translate-x-full transition-transform duration-300 ease-out flex flex-col justify-between">
+    <!-- Top Branding & Close Button -->
+    <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
+          <i class="fa-solid fa-camera-viewfinder text-lg"></i>
+        </div>
+        <div>
+          <h2 class="font-black text-sm uppercase tracking-tight text-slate-800 dark:text-white">
+            OGDC PPA <span class="text-emerald-600 dark:text-emerald-400">SCANNER</span>
+          </h2>
+          <span class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full mt-0.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Pro PWA Edition
+          </span>
+        </div>
+      </div>
+      <button onclick="closeSidebar()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer" aria-label="Tutup Menu">
+        <i class="fa-solid fa-xmark text-sm"></i>
+      </button>
+    </div>
+
+    <!-- Navigation Menu Items -->
+    <div class="p-4 flex-1 overflow-y-auto space-y-4 custom-scroll">
+      
+      <!-- Section: Akses Database & Drive (PIN Terproteksi) -->
+      <div>
+        <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-3 mb-2 flex items-center justify-between">
+          <span>Akses Penyimpanan</span>
+          <span class="text-[9px] text-amber-500 font-bold flex items-center gap-1"><i class="fa-solid fa-lock text-[8px]"></i> PIN Protected</span>
+        </p>
+
+        <div class="space-y-1.5">
+          <!-- Shortcut: Google Sheets -->
+          <button type="button" onclick="requestPinAccess('spreadsheet')" class="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-emerald-50/80 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-emerald-300 dark:hover:border-emerald-600/50 transition-all group text-left active:scale-[0.98] cursor-pointer">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-transform shadow-sm">
+                <i class="fa-solid fa-table-cells"></i>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-tight flex items-center gap-1.5">
+                  Database Sheets
+                  <i class="fa-solid fa-lock text-[9px] text-amber-500"></i>
+                </div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400">Sheet Data_Transaksi</div>
+              </div>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-400 group-hover:text-emerald-600 transition-colors"></i>
+          </button>
+
+          <!-- Shortcut: Google Drive -->
+          <button type="button" onclick="requestPinAccess('drive')" class="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-sky-300 dark:hover:border-sky-600/50 transition-all group text-left active:scale-[0.98] cursor-pointer">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-400 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-transform shadow-sm">
+                <i class="fa-solid fa-folder-open"></i>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-tight flex items-center gap-1.5">
+                  Folder Google Drive
+                  <i class="fa-solid fa-lock text-[9px] text-amber-500"></i>
+                </div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400">Arsip PDF Hasil Scan</div>
+              </div>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-400 group-hover:text-sky-600 transition-colors"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section: Navigasi Cepat Aplikasi -->
+      <div>
+        <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-3 mb-2">Menu Aplikasi</p>
+        <div class="space-y-1">
+          <button type="button" onclick="switchView('form'); closeSidebar();" class="w-full flex items-center gap-3 p-2.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-xs font-semibold cursor-pointer">
+            <i class="fa-solid fa-file-circle-plus text-emerald-600 w-5 text-center"></i>
+            <span>Scan Dokumen Baru</span>
+          </button>
+          <button type="button" onclick="switchView('history'); closeSidebar();" class="w-full flex items-center gap-3 p-2.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-xs font-semibold cursor-pointer">
+            <i class="fa-solid fa-clock-rotate-left text-teal-600 w-5 text-center"></i>
+            <span>Riwayat Transaksi Scan</span>
+          </button>
+          <button type="button" onclick="openHelpModal(); closeSidebar();" class="w-full flex items-center gap-3 p-2.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-xs font-semibold cursor-pointer">
+            <i class="fa-solid fa-circle-question text-sky-600 w-5 text-center"></i>
+            <span>Panduan & Tips Scan</span>
+          </button>
+          <button type="button" onclick="openPwaGuideModal(); closeSidebar();" class="w-full flex items-center gap-3 p-2.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left text-xs font-semibold cursor-pointer">
+            <i class="fa-solid fa-mobile-screen-button text-purple-600 w-5 text-center"></i>
+            <span>Pasang PWA ke Layar Utama</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Footer Information -->
+    <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+        <span class="font-semibold">Versi 4.7 Pro</span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Online (WITA)</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================================== -->
+  <!-- MODAL PIN AKSES KEAMANAN (PIN 0000)            -->
+  <!-- ============================================== -->
+  <div id="secure-pin-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[70] flex-col items-center justify-center hidden px-4 select-none">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative text-center border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200">
+      
+      <div class="w-14 h-14 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md shadow-amber-500/10">
+        <i class="fa-solid fa-shield-halved text-2xl"></i>
+      </div>
+      
+      <h2 id="secure-pin-title" class="text-base font-extrabold text-slate-800 dark:text-white uppercase mb-1">Akses Database</h2>
+      <p id="secure-pin-desc" class="text-xs text-slate-500 dark:text-slate-400 mb-4">Masukkan 4 digit PIN keamanan untuk membuka tautan langsung.</p>
+
+      <p id="secure-pin-error" class="text-xs text-rose-500 hidden mb-2 font-bold uppercase tracking-wider">PIN SALAH. SILAKAN COBA LAGI.</p>
+      
+      <form onsubmit="event.preventDefault(); submitPinAccess();">
+        <input type="password" id="secure-pin-input" maxlength="4" placeholder="••••" inputmode="numeric" autocomplete="off" class="glass-input text-center text-2xl tracking-[0.6em] mb-5 !py-3 w-full font-bold">
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <button type="button" onclick="closePinModal()" class="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold py-3 rounded-xl active:scale-95 text-xs uppercase tracking-wider transition-colors cursor-pointer">
+            Batal
+          </button>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-500/25 text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-unlock text-xs"></i> <span>Buka</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
