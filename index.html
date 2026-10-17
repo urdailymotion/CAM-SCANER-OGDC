@@ -672,6 +672,10 @@
         badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 uppercase flex items-center gap-1';
         badge.innerHTML = '<i class="fa-solid fa-bolt text-[8px]"></i> AI SCAN';
       }
+      const modal = document.getElementById('crop-modal');
+      if (modal && !modal.classList.contains('hidden') && typeof rawCropImage !== 'undefined' && rawCropImage && typeof autoDetectDocumentCorners === 'function') {
+        autoDetectDocumentCorners();
+      }
     }
     window.Module = {
       onRuntimeInitialized: function() {
@@ -912,15 +916,16 @@
       cropEditingPageIndex = pageIndex;
       cropRotation = 0;
 
-      // Auto detect corners on raw image with auto-trim for table borders
-      autoDetectDocumentCorners();
-
-      // Show crop modal
+      // Tampilkan crop modal terlebih dahulu agar dimensi kanvas siap
       const modal = document.getElementById('crop-modal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
 
       setupCropCanvas();
+
+      // Deteksi otomatis sudut fisik kertas
+      autoDetectDocumentCorners();
+
       drawCropCanvas();
     }
 
@@ -932,21 +937,21 @@
       cropEditingPageIndex = null;
     }
 
-    // Auto Detect 4 Document Corners: Hybrid Pure Canvas + OpenCV
+    // Auto Detect 4 Document Corners: Multi-Pass OpenCV (Otsu + Canny + Adaptive + Shoelace Area Maximization) + Pure Canvas Scanner
     function autoDetectDocumentCorners() {
       if (!rawCropImage) return;
 
       const w = rawCropImage.naturalWidth || rawCropImage.width;
       const h = rawCropImage.naturalHeight || rawCropImage.height;
 
-      // 1. Pure Canvas instant edge detection (guaranteed to work in 3ms with 0 dependencies)
+      // 1. Instant Edge Gradient Detection (Pure Canvas fallback)
       let detected = detectPaperCornersPureCanvas(rawCropImage);
 
-      // 2. If OpenCV is loaded, try enhanced Otsu contour detection
+      // 2. OpenCV Multi-Pass Engine (Otsu + Canny + Adaptive + Shoelace Area Maximization)
       if (window.openCvReady && window.cv && window.cv.Mat) {
         try {
           const cv = window.cv;
-          const maxDim = 500;
+          const maxDim = 540;
           const scale = Math.min(1, maxDim / Math.max(w, h));
           const dw = Math.round(w * scale);
           const dh = Math.round(h * scale);
@@ -961,69 +966,157 @@
           const src = cv.imread(tmpCanvas);
           const gray = new cv.Mat();
           cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-          const blurred = new cv.Mat();
-          cv.GaussianBlur(gray, blurred, new cv.Size(9, 9), 0);
 
+          const blurred = new cv.Mat();
+          cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+
+          let bestQuad = null;
+          let maxArea = 0;
+
+          // Helper to analyze a binary/edge mask
+          const evaluateMask = (mask) => {
+            const contours = new cv.MatVector();
+            const hier = new cv.Mat();
+            cv.findContours(mask, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+            for (let i = 0; i < contours.size(); i++) {
+              const cnt = contours.get(i);
+              const area = cv.contourArea(cnt);
+              if (area > totalArea * 0.08 && area < totalArea * 0.98 && area > maxArea) {
+                const hull = new cv.Mat();
+                cv.convexHull(cnt, hull, false, true);
+                const peri = cv.arcLength(hull, true);
+
+                let foundQuad = null;
+
+                // Pass A: ApproxPolyDP across varying epsilon
+                for (let eps = 0.015; eps <= 0.065; eps += 0.005) {
+                  const approx = new cv.Mat();
+                  cv.approxPolyDP(hull, approx, eps * peri, true);
+                  if (approx.rows === 4 && cv.isContourConvex(approx)) {
+                    const d = approx.data32S;
+                    foundQuad = [
+                      { x: d[0] / scale, y: d[1] / scale },
+                      { x: d[2] / scale, y: d[3] / scale },
+                      { x: d[4] / scale, y: d[5] / scale },
+                      { x: d[6] / scale, y: d[7] / scale }
+                    ];
+                    approx.delete();
+                    break;
+                  }
+                  // If approx has 5 to 10 vertices, find the 4 outermost vertices that maximize quad area
+                  if (approx.rows >= 5 && approx.rows <= 10 && !foundQuad) {
+                    const polyPts = [];
+                    for (let p = 0; p < approx.rows; p++) {
+                      polyPts.push({
+                        x: approx.data32S[p * 2] / scale,
+                        y: approx.data32S[p * 2 + 1] / scale
+                      });
+                    }
+                    const best4 = findBestQuadFromPoints(polyPts);
+                    if (best4 && best4.length === 4) {
+                      foundQuad = best4;
+                    }
+                  }
+                  approx.delete();
+                  if (foundQuad) break;
+                }
+
+                // Pass B: Extract 4 best corners from convex hull vertices
+                if (!foundQuad && hull.rows >= 4) {
+                  const hullPts = [];
+                  const step = Math.max(1, Math.floor(hull.rows / 12));
+                  for (let j = 0; j < hull.rows; j += step) {
+                    hullPts.push({
+                      x: hull.data32S[j * 2] / scale,
+                      y: hull.data32S[j * 2 + 1] / scale
+                    });
+                  }
+                  const best4 = findBestQuadFromPoints(hullPts);
+                  if (best4 && best4.length === 4) {
+                    foundQuad = best4;
+                  }
+                }
+
+                // Pass C: Fallback to minAreaRect corners
+                if (!foundQuad) {
+                  try {
+                    const rect = cv.minAreaRect(cnt);
+                    const angle = (rect.angle * Math.PI) / 180;
+                    const cos = Math.cos(angle), sin = Math.sin(angle);
+                    const hw = rect.size.width / 2, hh = rect.size.height / 2;
+                    const cx = rect.center.x, cy = rect.center.y;
+                    foundQuad = [
+                      { x: (cx - hw * cos + hh * sin) / scale, y: (cy - hw * sin - hh * cos) / scale },
+                      { x: (cx + hw * cos + hh * sin) / scale, y: (cy + hw * sin - hh * cos) / scale },
+                      { x: (cx + hw * cos - hh * sin) / scale, y: (cy + hw * sin + hh * cos) / scale },
+                      { x: (cx - hw * cos - hh * sin) / scale, y: (cy - hw * sin + hh * cos) / scale }
+                    ];
+                  } catch (e) {}
+                }
+
+                if (foundQuad) {
+                  maxArea = area;
+                  bestQuad = orderQuadPoints(foundQuad);
+                }
+
+                hull.delete();
+              }
+              cnt.delete();
+            }
+            contours.delete();
+            hier.delete();
+          };
+
+          // 1. Otsu threshold with morphological closing (Best for white paper on desk)
           const otsu = new cv.Mat();
           cv.threshold(blurred, otsu, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
-
-          const otsuData = otsu.data;
-          let cornerWhite = 0;
-          if (otsuData[0] > 128) cornerWhite++;
-          if (otsuData[dw - 1] > 128) cornerWhite++;
-          if (otsuData[(dh - 1) * dw] > 128) cornerWhite++;
-          if (otsuData[(dh - 1) * dw + (dw - 1)] > 128) cornerWhite++;
-          if (cornerWhite >= 3) {
+          const k9 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(9, 9));
+          cv.morphologyEx(otsu, otsu, cv.MORPH_CLOSE, k9);
+          evaluateMask(otsu);
+          if (!bestQuad) {
             cv.bitwise_not(otsu, otsu);
+            evaluateMask(otsu);
+          }
+          otsu.delete(); k9.delete();
+
+          // 2. Canny edge detector with morphological closing (For edge contrast between paper and desk)
+          if (!bestQuad) {
+            const edges = new cv.Mat();
+            cv.Canny(blurred, edges, 35, 120);
+            const k5 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(7, 7));
+            cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, k5);
+            cv.dilate(edges, edges, k5);
+            evaluateMask(edges);
+            edges.delete(); k5.delete();
           }
 
-          const closeKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(11, 11));
-          const otsuClosed = new cv.Mat();
-          cv.morphologyEx(otsu, otsuClosed, cv.MORPH_CLOSE, closeKernel);
-
-          const contours = new cv.MatVector();
-          const hier = new cv.Mat();
-          cv.findContours(otsuClosed, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-          let maxArea = 0;
-          let cvQuad = null;
-
-          for (let i = 0; i < contours.size(); i++) {
-            const cnt = contours.get(i);
-            const area = cv.contourArea(cnt);
-            if (area > totalArea * 0.15 && area < totalArea * 0.99 && area > maxArea) {
-              const peri = cv.arcLength(cnt, true);
-              const approx = new cv.Mat();
-              cv.approxPolyDP(cnt, approx, 0.03 * peri, true);
-              if (approx.rows === 4) {
-                maxArea = area;
-                const d = approx.data32S;
-                cvQuad = orderQuadPoints([
-                  { x: d[0] / scale, y: d[1] / scale },
-                  { x: d[2] / scale, y: d[3] / scale },
-                  { x: d[4] / scale, y: d[5] / scale },
-                  { x: d[6] / scale, y: d[7] / scale }
-                ]);
-              }
-              approx.delete();
+          // 3. Adaptive threshold (For uneven lighting / desk shadows)
+          if (!bestQuad) {
+            const adap = new cv.Mat();
+            cv.adaptiveThreshold(blurred, adap, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 25, 7);
+            const k7 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(7, 7));
+            cv.morphologyEx(adap, adap, cv.MORPH_CLOSE, k7);
+            evaluateMask(adap);
+            if (!bestQuad) {
+              cv.bitwise_not(adap, adap);
+              evaluateMask(adap);
             }
-            cnt.delete();
+            adap.delete(); k7.delete();
           }
 
-          if (cvQuad) {
-            // Keep 100% outer perimeter of document without artificial inward clipping
+          if (bestQuad) {
             detected = {
-              tl: { x: Math.max(0, Math.min(w, Math.round(cvQuad.tl.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.tl.y))) },
-              tr: { x: Math.max(0, Math.min(w, Math.round(cvQuad.tr.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.tr.y))) },
-              br: { x: Math.max(0, Math.min(w, Math.round(cvQuad.br.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.br.y))) },
-              bl: { x: Math.max(0, Math.min(w, Math.round(cvQuad.bl.x))), y: Math.max(0, Math.min(h, Math.round(cvQuad.bl.y))) }
+              tl: { x: Math.max(0, Math.min(w, Math.round(bestQuad.tl.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.tl.y))) },
+              tr: { x: Math.max(0, Math.min(w, Math.round(bestQuad.tr.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.tr.y))) },
+              br: { x: Math.max(0, Math.min(w, Math.round(bestQuad.br.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.br.y))) },
+              bl: { x: Math.max(0, Math.min(w, Math.round(bestQuad.bl.x))), y: Math.max(0, Math.min(h, Math.round(bestQuad.bl.y))) }
             };
           }
 
-          src.delete(); gray.delete(); blurred.delete(); otsu.delete();
-          closeKernel.delete(); otsuClosed.delete(); contours.delete(); hier.delete();
+          src.delete(); gray.delete(); blurred.delete();
         } catch (e) {
-          console.warn('OpenCV corner detection fallback to pure canvas: ', e);
+          console.warn('OpenCV corner detection error: ', e);
         }
       }
 
@@ -1031,7 +1124,48 @@
       drawCropCanvas();
     }
 
-    // Pure Canvas Document Corner Detection (Independent, 100% reliable, zero delay)
+    // Shoelace Quadrilateral Area Maximizer: extracts the 4 true paper corners from a set of vertices
+    function findBestQuadFromPoints(pts) {
+      if (!pts || pts.length < 4) return null;
+      if (pts.length === 4) return pts;
+
+      let candidates = pts;
+      if (candidates.length > 12) {
+        const step = candidates.length / 12;
+        const sampled = [];
+        for (let i = 0; i < 12; i++) {
+          sampled.push(candidates[Math.floor(i * step)]);
+        }
+        candidates = sampled;
+      }
+
+      const n = candidates.length;
+      let maxArea = -1;
+      let bestQuad = null;
+
+      for (let i = 0; i < n - 3; i++) {
+        for (let j = i + 1; j < n - 2; j++) {
+          for (let k = j + 1; k < n - 1; k++) {
+            for (let l = k + 1; l < n; l++) {
+              const p0 = candidates[i], p1 = candidates[j], p2 = candidates[k], p3 = candidates[l];
+              const area = 0.5 * Math.abs(
+                p0.x * (p1.y - p3.y) +
+                p1.x * (p2.y - p0.y) +
+                p2.x * (p3.y - p1.y) +
+                p3.x * (p0.y - p2.y)
+              );
+              if (area > maxArea) {
+                maxArea = area;
+                bestQuad = [p0, p1, p2, p3];
+              }
+            }
+          }
+        }
+      }
+      return bestQuad;
+    }
+
+    // Pure Canvas Document Corner Detection (Contrast Gradient Scanner)
     function detectPaperCornersPureCanvas(image) {
       const w = image.naturalWidth || image.width;
       const h = image.naturalHeight || image.height;
@@ -1048,76 +1182,73 @@
       const imgData = ctx.getImageData(0, 0, dw, dh);
       const data = imgData.data;
 
-      // Sample central area to determine paper brightness baseline
-      let centerLum = 0;
-      let count = 0;
-      const cxStart = Math.round(dw * 0.35);
-      const cxEnd = Math.round(dw * 0.65);
-      const cyStart = Math.round(dh * 0.35);
-      const cyEnd = Math.round(dh * 0.65);
+      // Scan horizontal and vertical contrast gradient lines
+      const leftVals = [];
+      const rightVals = [];
+      const topVals = [];
+      const botVals = [];
 
-      for (let y = cyStart; y <= cyEnd; y += 4) {
-        for (let x = cxStart; x <= cxEnd; x += 4) {
-          const idx = (y * dw + x) * 4;
-          const lum = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
-          if (lum > 110) {
-            centerLum += lum;
-            count++;
+      const linesY = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85].map(p => Math.round(dh * p));
+      const linesX = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85].map(p => Math.round(dw * p));
+
+      linesY.forEach(y => {
+        let maxGrad = 20, bestX = -1;
+        for (let x = 4; x < dw * 0.45; x++) {
+          const idx0 = (y * dw + x - 2) * 4;
+          const idx1 = (y * dw + x + 2) * 4;
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const grad = Math.abs(lum1 - lum0);
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+            maxGrad = grad;
+            bestX = x;
           }
         }
-      }
-      const refLum = count > 0 ? (centerLum / count) : 200;
-      const paperThreshold = Math.max(105, refLum * 0.68);
+        if (bestX > 0) leftVals.push(bestX / scale);
 
-      function isPaper(x, y) {
-        const idx = (y * dw + x) * 4;
-        const r = data[idx];
-        const g = data[idx+1];
-        const b = data[idx+2];
-        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        const maxC = Math.max(r, g, b);
-        const minC = Math.min(r, g, b);
-        const chroma = maxC - minC;
-        return (lum >= paperThreshold) && (chroma < 35 || lum > 190);
-      }
-
-      // Scan inward from outer edges
-      const scanLinesY = [0.20, 0.35, 0.50, 0.65, 0.80].map(p => Math.round(dh * p));
-      const scanLinesX = [0.20, 0.35, 0.50, 0.65, 0.80].map(p => Math.round(dw * p));
-
-      let leftVals = [];
-      let rightVals = [];
-      let topVals = [];
-      let botVals = [];
-
-      scanLinesY.forEach(y => {
-        for (let x = 0; x < dw * 0.45; x++) {
-          if (isPaper(x, y) && isPaper(x + 2, y) && isPaper(x + 4, y)) {
-            leftVals.push(x / scale);
-            break;
+        maxGrad = 20; bestX = -1;
+        for (let x = dw - 5; x > dw * 0.55; x--) {
+          const idx0 = (y * dw + x + 2) * 4;
+          const idx1 = (y * dw + x - 2) * 4;
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const grad = Math.abs(lum1 - lum0);
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+            maxGrad = grad;
+            bestX = x;
           }
         }
-        for (let x = dw - 1; x > dw * 0.55; x--) {
-          if (isPaper(x, y) && isPaper(x - 2, y) && isPaper(x - 4, y)) {
-            rightVals.push(x / scale);
-            break;
-          }
-        }
+        if (bestX > 0) rightVals.push(bestX / scale);
       });
 
-      scanLinesX.forEach(x => {
-        for (let y = 0; y < dh * 0.45; y++) {
-          if (isPaper(x, y) && isPaper(x, y + 2) && isPaper(x, y + 4)) {
-            topVals.push(y / scale);
-            break;
+      linesX.forEach(x => {
+        let maxGrad = 20, bestY = -1;
+        for (let y = 4; y < dh * 0.45; y++) {
+          const idx0 = ((y - 2) * dw + x) * 4;
+          const idx1 = ((y + 2) * dw + x) * 4;
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const grad = Math.abs(lum1 - lum0);
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+            maxGrad = grad;
+            bestY = y;
           }
         }
-        for (let y = dh - 1; y > dh * 0.55; y--) {
-          if (isPaper(x, y) && isPaper(x, y - 2) && isPaper(x, y - 4)) {
-            botVals.push(y / scale);
-            break;
+        if (bestY > 0) topVals.push(bestY / scale);
+
+        maxGrad = 20; bestY = -1;
+        for (let y = dh - 5; y > dh * 0.55; y--) {
+          const idx0 = ((y + 2) * dw + x) * 4;
+          const idx1 = ((y - 2) * dw + x) * 4;
+          const lum0 = 0.299 * data[idx0] + 0.587 * data[idx0+1] + 0.114 * data[idx0+2];
+          const lum1 = 0.299 * data[idx1] + 0.587 * data[idx1+1] + 0.114 * data[idx1+2];
+          const grad = Math.abs(lum1 - lum0);
+          if (grad > maxGrad && (lum1 > lum0 || lum1 > 125)) {
+            maxGrad = grad;
+            bestY = y;
           }
         }
+        if (bestY > 0) botVals.push(bestY / scale);
       });
 
       const getMedian = arr => {
@@ -1133,7 +1264,6 @@
 
       if (leftX !== null && rightX !== null && topY !== null && botY !== null) {
         if ((rightX - leftX) > w * 0.35 && (botY - topY) > h * 0.35) {
-          // Exact outer boundary without destructive 3.5% shrinkage
           return {
             tl: { x: Math.max(0, Math.round(leftX)), y: Math.max(0, Math.round(topY)) },
             tr: { x: Math.min(w, Math.round(rightX)), y: Math.max(0, Math.round(topY)) },
@@ -1143,33 +1273,37 @@
         }
       }
 
-      // Safe fallback: 100% full frame bounds (guarantees zero clipping for A4 close-up photos)
+      // Safe fallback: 96% inner frame so handles are clearly visible and draggable
       return {
-        tl: { x: 0, y: 0 },
-        tr: { x: w, y: 0 },
-        br: { x: w, y: h },
-        bl: { x: 0, y: h }
+        tl: { x: Math.round(w * 0.02), y: Math.round(h * 0.02) },
+        tr: { x: Math.round(w * 0.98), y: Math.round(h * 0.02) },
+        br: { x: Math.round(w * 0.98), y: Math.round(h * 0.98) },
+        bl: { x: Math.round(w * 0.02), y: Math.round(h * 0.98) }
       };
     }
 
+    // Mathematical Quad Point Ordering: Clockwise from Top-Left
     function orderQuadPoints(pts) {
-      if (!pts || pts.length !== 4) return pts;
-      const cx = (pts[0].x + pts[1].x + pts[2].x + pts[3].x) / 4;
-      const cy = (pts[0].y + pts[1].y + pts[2].y + pts[3].y) / 4;
+      if (!pts || pts.length < 4) return pts;
 
-      const sorted = pts.slice().sort((a, b) => {
+      const pArr = Array.isArray(pts) ? pts.slice(0, 4) : [pts.tl, pts.tr, pts.br, pts.bl];
+      const cx = (pArr[0].x + pArr[1].x + pArr[2].x + pArr[3].x) / 4;
+      const cy = (pArr[0].y + pArr[1].y + pArr[2].y + pArr[3].y) / 4;
+
+      // Sort clockwise by angle from centroid
+      const sorted = pArr.slice().sort((a, b) => {
         return Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx);
       });
 
-      let tlIdx = 0;
-      let minSum = Infinity;
-      sorted.forEach((p, idx) => {
-        const sum = p.x + p.y;
+      // Find top-left (point with minimum sum x + y)
+      let minSum = Infinity, tlIdx = 0;
+      for (let i = 0; i < 4; i++) {
+        const sum = sorted[i].x + sorted[i].y;
         if (sum < minSum) {
           minSum = sum;
-          tlIdx = idx;
+          tlIdx = i;
         }
-      });
+      }
 
       return {
         tl: sorted[tlIdx],
