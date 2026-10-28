@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OGDC PPA CamScanner Pro PDF v4.4 - PWA Installable & True Blank Edition -->
+<!-- OGDC PPA CamScanner Pro PDF v5.3 - Universal Live Camera Viewfinder & iPhone / Huawei Compatibility Edition -->
 <html lang="id">
 <head>
   <meta charset="UTF-8">
@@ -56,6 +56,9 @@
     /* Mobile safe area padding */
     .pb-safe {
       padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+    }
+    .pt-safe {
+      padding-top: max(env(safe-area-inset-top, 0px), 12px);
     }
 
     /* Touch optimization */
@@ -291,34 +294,59 @@
           </button>
         </div>
 
-        <!-- Tombol Tambah Halaman: Kamera & Galeri -->
-        <div class="grid grid-cols-3 gap-2.5 mb-5">
-          <!-- Ambil Kamera -->
-          <label for="camera-input" class="cursor-pointer bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 border-2 border-dashed border-emerald-300 dark:border-emerald-800/60 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
-            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/30">
+        <!-- Tombol Tambah Halaman: Kamera Scan, Kamera HP, Galeri, PDF -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+          <!-- 1. Ambil Kamera Scan (Live Viewfinder - Rekomendasi Utama) -->
+          <button type="button" onclick="openLiveCamera()" class="cursor-pointer bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 border-2 border-dashed border-emerald-400 dark:border-emerald-700/80 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all shadow-sm">
+            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/30 relative">
               <i class="fa-solid fa-camera text-base"></i>
+              <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border border-white dark:border-slate-800 animate-pulse"></span>
             </div>
-            <span class="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">Kamera</span>
-            <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" onchange="onSourceFilePicked(event)">
-          </label>
+            <div class="leading-tight">
+              <span class="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide block">Kamera Scan</span>
+              <span class="text-[9px] font-semibold text-emerald-600/80 dark:text-emerald-400/80">Live Viewfinder</span>
+            </div>
+          </button>
 
-          <!-- Pilih Galeri -->
-          <label for="gallery-input" class="cursor-pointer bg-slate-50 hover:bg-slate-100 dark:bg-slate-700/30 dark:hover:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
+          <!-- 2. Kamera Bawaan HP (Direct Native Camera - Solusi Huawei & iPhone) -->
+          <button type="button" onclick="triggerNativeCamera()" class="cursor-pointer bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/30 dark:hover:bg-teal-950/50 border-2 border-dashed border-teal-300 dark:border-teal-800/60 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
+            <div class="w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
+              <i class="fa-solid fa-mobile-screen-button text-base"></i>
+            </div>
+            <div class="leading-tight">
+              <span class="text-[11px] font-bold text-teal-800 dark:text-teal-300 uppercase tracking-wide block">Kamera HP</span>
+              <span class="text-[9px] font-semibold text-teal-600/80 dark:text-teal-400/80">Kamera Bawaan</span>
+            </div>
+          </button>
+
+          <!-- 3. Pilih Galeri -->
+          <button type="button" onclick="triggerGalleryPicker()" class="cursor-pointer bg-slate-50 hover:bg-slate-100 dark:bg-slate-700/30 dark:hover:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
             <div class="w-10 h-10 rounded-full bg-slate-700 dark:bg-slate-600 text-white flex items-center justify-center shadow-sm">
               <i class="fa-solid fa-images text-base"></i>
             </div>
-            <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Galeri</span>
-            <input type="file" id="gallery-input" accept="image/*" class="hidden" onchange="onSourceFilePicked(event)">
-          </label>
+            <div class="leading-tight">
+              <span class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide block">Galeri</span>
+              <span class="text-[9px] font-semibold text-slate-500 dark:text-slate-400">Pilih Foto</span>
+            </div>
+          </button>
 
-          <!-- Upload PDF Langsung -->
-          <label for="pdf-input" class="cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border-2 border-dashed border-blue-200 dark:border-blue-800/60 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
+          <!-- 4. Upload PDF Langsung -->
+          <button type="button" onclick="triggerPdfPicker()" class="cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border-2 border-dashed border-blue-200 dark:border-blue-800/60 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition-all">
             <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20">
               <i class="fa-solid fa-file-pdf text-base"></i>
             </div>
-            <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">File PDF</span>
-            <input type="file" id="pdf-input" accept="application/pdf" class="hidden" onchange="onPdfFilePicked(event)">
-          </label>
+            <div class="leading-tight">
+              <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide block">File PDF</span>
+              <span class="text-[9px] font-semibold text-blue-600/80 dark:text-blue-400/80">Upload PDF</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Input File Tersembunyi (Aman untuk iOS & Huawei, tidak memakai display:none agar event click tidak diblokir) -->
+        <div style="position: fixed; top: -9999px; left: -9999px; opacity: 0; width: 1px; height: 1px; pointer-events: none; overflow: hidden;" aria-hidden="true">
+          <input type="file" id="camera-input" accept="image/*,image/jpeg,image/png,image/heic,image/heif" capture="environment" onchange="onSourceFilePicked(event)">
+          <input type="file" id="gallery-input" accept="image/*,image/jpeg,image/png,image/heic,image/heif" onchange="onSourceFilePicked(event)">
+          <input type="file" id="pdf-input" accept="application/pdf" onchange="onPdfFilePicked(event)">
         </div>
 
         <!-- Empty State Container -->
@@ -327,7 +355,7 @@
             <i class="fa-solid fa-camera-rotate text-2xl"></i>
           </div>
           <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase">Belum Ada Halaman Dokumen</h3>
-          <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Tekan tombol <span class="text-emerald-600 dark:text-emerald-400 font-bold">Kamera</span> untuk memotret. Sistem akan otomatis mendeteksi tepi kertas, menghapus bayangan tangan, dan mempertajam teks.</p>
+          <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Gunakan <span class="text-emerald-600 dark:text-emerald-400 font-bold">Kamera Scan</span> (Live Viewfinder) atau <span class="text-teal-600 dark:text-teal-400 font-bold">Kamera HP</span> untuk memotret. Sistem otomatis meluruskan sudut dan memutihkan kertas.</p>
         </div>
 
         <!-- Scanned Pages List Container -->
@@ -390,6 +418,107 @@
     </section>
 
   </main>
+
+  <!-- ============================================== -->
+  <!-- MODAL 0: CAMSCANNER LIVE CAMERA VIEWFINDER     -->
+  <!-- ============================================== -->
+  <div id="live-camera-modal" class="fixed inset-0 bg-black z-50 flex-col justify-between hidden select-none overflow-hidden">
+    <!-- Top Bar Controls -->
+    <div class="p-3 sm:p-4 flex items-center justify-between text-white bg-gradient-to-b from-black/90 via-black/60 to-transparent z-20 pt-safe">
+      <button type="button" onclick="closeLiveCamera()" class="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center active:scale-90 text-sm font-semibold transition cursor-pointer border border-white/10" title="Tutup Kamera">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> CamScanner Live
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Torch/Flash Button -->
+        <button type="button" id="camera-torch-btn" onclick="toggleTorch()" class="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center active:scale-90 text-sm font-semibold transition cursor-pointer hidden border border-white/10" title="Lampu Kilat">
+          <i class="fa-solid fa-bolt text-base"></i>
+        </button>
+
+        <!-- Switch Front/Back Camera -->
+        <button type="button" onclick="switchCameraFacing()" class="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center active:scale-90 text-sm font-semibold transition cursor-pointer border border-white/10" title="Putar Kamera">
+          <i class="fa-solid fa-camera-rotate text-base"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Center Video Viewfinder with Document Alignment Overlay -->
+    <div class="flex-1 relative flex items-center justify-center overflow-hidden bg-black">
+      <video id="live-camera-video" playsinline webkit-playsinline autoplay muted class="absolute inset-0 w-full h-full object-cover"></video>
+
+      <!-- Shutter Flash Effect -->
+      <div id="camera-shutter-flash" class="absolute inset-0 bg-white pointer-events-none hidden transition-opacity duration-150 z-30"></div>
+
+      <!-- Alignment Guides Overlay -->
+      <div class="relative w-[85%] max-w-sm aspect-[1/1.414] border border-white/30 rounded-2xl pointer-events-none flex flex-col justify-between p-3.5 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] z-10">
+        <!-- Corner Brackets Top -->
+        <div class="flex justify-between items-start">
+          <div class="w-7 h-7 border-t-4 border-l-4 border-emerald-400 rounded-tl-xl shadow-sm"></div>
+          <div class="w-7 h-7 border-t-4 border-r-4 border-emerald-400 rounded-tr-xl shadow-sm"></div>
+        </div>
+
+        <div class="text-center">
+          <span class="bg-black/60 backdrop-blur-md text-emerald-300 text-[10px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider border border-emerald-500/40 shadow-lg">
+            Arahkan Dokumen ke Bingkai
+          </span>
+        </div>
+
+        <!-- Corner Brackets Bottom -->
+        <div class="flex justify-between items-end">
+          <div class="w-7 h-7 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl shadow-sm"></div>
+          <div class="w-7 h-7 border-b-4 border-r-4 border-emerald-400 rounded-br-xl shadow-sm"></div>
+        </div>
+      </div>
+
+      <!-- Error / Fallback Box (Jika Izin Ditolak atau Kamera Bermasalah) -->
+      <div id="camera-error-message" class="absolute inset-x-4 top-1/3 p-5 rounded-2xl bg-slate-900/95 border border-rose-500/40 text-center z-40 hidden shadow-2xl backdrop-blur-md">
+        <div class="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-3 text-xl">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h4 class="text-sm font-bold text-white uppercase mb-1">Akses Kamera Terkendala</h4>
+        <p id="camera-error-text" class="text-xs text-slate-300 mb-4 leading-relaxed">
+          Kamera tidak dapat dimulai. Silakan gunakan tombol Kamera Bawaan HP di bawah.
+        </p>
+        <button type="button" onclick="triggerNativeCamera()" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 cursor-pointer">
+          <i class="fa-solid fa-mobile-screen-button"></i> <span>Buka Kamera Bawaan HP</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Shutter Bar -->
+    <div class="p-6 bg-gradient-to-t from-black/95 via-black/85 to-transparent flex items-center justify-around z-20 pb-safe">
+      <!-- Tombol Galeri Cepat -->
+      <button type="button" onclick="triggerGalleryPicker()" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition cursor-pointer w-16">
+        <div class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+          <i class="fa-solid fa-images text-base"></i>
+        </div>
+        <span class="text-[9px] font-bold uppercase tracking-wider">Galeri</span>
+      </button>
+
+      <!-- Tombol Shutter Utama -->
+      <div class="relative flex items-center justify-center">
+        <button type="button" onclick="captureLivePhoto()" class="w-20 h-20 rounded-full border-4 border-white bg-emerald-500 hover:bg-emerald-400 active:scale-90 flex items-center justify-center text-white shadow-2xl shadow-emerald-500/50 transition cursor-pointer" title="Ambil Foto Dokumen">
+          <div class="w-14 h-14 rounded-full bg-white flex items-center justify-center text-emerald-600">
+            <i class="fa-solid fa-camera text-xl"></i>
+          </div>
+        </button>
+      </div>
+
+      <!-- Tombol Alih ke Kamera Bawaan HP -->
+      <button type="button" onclick="triggerNativeCamera()" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition cursor-pointer w-16" title="Gunakan Aplikasi Kamera Bawaan HP">
+        <div class="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 text-teal-400">
+          <i class="fa-solid fa-mobile-screen-button text-base"></i>
+        </div>
+        <span class="text-[9px] font-bold uppercase tracking-wider">Bawaan</span>
+      </button>
+    </div>
+  </div>
 
   <!-- ============================================== -->
   <!-- MODAL 1: CAMSCANNER 4-CORNER PERSPECTIVE CROP  -->
@@ -904,33 +1033,341 @@
     }
 
     // ----------------------------------------------------
-    // 5. CAMSCANNER CAPTURE & CROP WORKFLOW
+    // 5. CAMSCANNER LIVE CAMERA & CAPTURE ENGINE (UNIVERSAL IOS & HUAWEI)
     // ----------------------------------------------------
-    function onSourceFilePicked(event) {
-      const file = event.target.files[0];
-      event.target.value = '';
-      if (!file) return;
+    let cameraStream = null;
+    let currentFacingMode = 'environment';
+    let isTorchOn = false;
+    let torchTrack = null;
+    let lastCameraMode = 'live';
 
-      if (!file.type.startsWith('image/')) {
-        alert('Harap pilih file gambar dokumen.');
+    async function openLiveCamera() {
+      lastCameraMode = 'live';
+      const modal = document.getElementById('live-camera-modal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      await startCameraStream(currentFacingMode);
+    }
+
+    function closeLiveCamera() {
+      stopCameraStream();
+      const modal = document.getElementById('live-camera-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function stopCameraStream() {
+      if (torchTrack && isTorchOn) {
+        try {
+          torchTrack.applyConstraints({ advanced: [{ torch: false }] });
+        } catch (e) {}
+        isTorchOn = false;
+      }
+      torchTrack = null;
+
+      if (cameraStream) {
+        try {
+          cameraStream.getTracks().forEach(track => {
+            track.stop();
+          });
+        } catch (e) {}
+        cameraStream = null;
+      }
+      const video = document.getElementById('live-camera-video');
+      if (video) {
+        video.srcObject = null;
+      }
+    }
+
+    async function startCameraStream(facing) {
+      stopCameraStream();
+
+      const video = document.getElementById('live-camera-video');
+      const errorBox = document.getElementById('camera-error-message');
+      if (errorBox) errorBox.classList.add('hidden');
+
+      // Validasi keamanan konteks (HTTPS / Localhost)
+      const isSecure = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isSecure || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        handleCameraPermissionError({ name: 'NotSupportedError', message: 'Kamera langsung membutuhkan koneksi aman HTTPS atau peramban tidak mendukung WebRTC.' });
+        return;
+      }
+
+      // Opsi konfigurasi kamera bertingkat untuk kompatibilitas penuh (iOS Safari & Huawei EMUI/HarmonyOS)
+      const constraintsList = [
+        {
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1920, max: 2560 },
+            height: { ideal: 1080, max: 1440 }
+          },
+          audio: false
+        },
+        {
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        },
+        {
+          video: { facingMode: facing },
+          audio: false
+        },
+        {
+          video: true,
+          audio: false
+        }
+      ];
+
+      let stream = null;
+      let lastErr = null;
+
+      for (const constraints of constraintsList) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (err) {
+          lastErr = err;
+          console.warn('[Camera] Percobaan konfigurasi gagal, mencoba alternatif:', err);
+        }
+      }
+
+      if (!stream) {
+        console.error('[Camera] Seluruh inisialisasi kamera gagal:', lastErr);
+        handleCameraPermissionError(lastErr);
+        return;
+      }
+
+      cameraStream = stream;
+      if (video) {
+        video.srcObject = stream;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
+        try {
+          await video.play();
+        } catch (playErr) {
+          console.warn('[Camera] Video play tertunda:', playErr);
+        }
+      }
+
+      checkTorchSupport(stream);
+    }
+
+    function checkTorchSupport(stream) {
+      const torchBtn = document.getElementById('camera-torch-btn');
+      if (!torchBtn) return;
+
+      const track = stream.getVideoTracks()[0];
+      torchTrack = track;
+      isTorchOn = false;
+      updateTorchUi();
+
+      if (track && track.getCapabilities) {
+        try {
+          const caps = track.getCapabilities();
+          if (caps && caps.torch) {
+            torchBtn.classList.remove('hidden');
+            return;
+          }
+        } catch (e) {}
+      }
+      torchBtn.classList.add('hidden');
+    }
+
+    async function toggleTorch() {
+      if (!torchTrack) return;
+      try {
+        isTorchOn = !isTorchOn;
+        await torchTrack.applyConstraints({
+          advanced: [{ torch: isTorchOn }]
+        });
+        updateTorchUi();
+      } catch (err) {
+        console.warn('Gagal mengubah status senter:', err);
+        isTorchOn = false;
+        updateTorchUi();
+      }
+    }
+
+    function updateTorchUi() {
+      const torchBtn = document.getElementById('camera-torch-btn');
+      if (!torchBtn) return;
+      if (isTorchOn) {
+        torchBtn.classList.add('bg-amber-400', 'text-slate-950');
+        torchBtn.classList.remove('bg-black/50', 'text-white');
+      } else {
+        torchBtn.classList.remove('bg-amber-400', 'text-slate-950');
+        torchBtn.classList.add('bg-black/50', 'text-white');
+      }
+    }
+
+    async function switchCameraFacing() {
+      currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+      await startCameraStream(currentFacingMode);
+    }
+
+    function captureLivePhoto() {
+      const video = document.getElementById('live-camera-video');
+      if (!video || !cameraStream || video.videoWidth === 0 || video.videoHeight === 0) {
+        showToast('Kamera belum siap, mohon tunggu sebentar...');
+        return;
+      }
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const captureCanvas = document.createElement('canvas');
+      captureCanvas.width = vw;
+      captureCanvas.height = vh;
+      const ctx = captureCanvas.getContext('2d');
+
+      // Animasi efek flash shutter
+      const flash = document.getElementById('camera-shutter-flash');
+      if (flash) {
+        flash.classList.remove('hidden');
+        setTimeout(() => flash.classList.add('hidden'), 120);
+      }
+
+      ctx.drawImage(video, 0, 0, vw, vh);
+
+      stopCameraStream();
+      closeLiveCamera();
+
+      showProcessing('Menyiapkan Dokumen...', 'Mendeteksi 4 sudut lembar dokumen...');
+
+      const dataUrl = captureCanvas.toDataURL('image/jpeg', 0.95);
+      const img = new Image();
+      img.onload = function() {
+        hideProcessing();
+        openCropModalForImage(img, null);
+      };
+      img.onerror = function() {
+        hideProcessing();
+        alert('Gagal memproses gambar jepretan kamera.');
+      };
+      img.src = dataUrl;
+    }
+
+    function handleCameraPermissionError(err) {
+      const errorBox = document.getElementById('camera-error-message');
+      const errorText = document.getElementById('camera-error-text');
+      if (!errorBox || !errorText) return;
+
+      errorBox.classList.remove('hidden');
+      if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+        errorText.innerText = 'Izin kamera ditolak. Silakan izinkan akses kamera di Pengaturan Browser HP Anda, atau gunakan Kamera Bawaan HP di bawah.';
+      } else if (err && err.name === 'NotFoundError') {
+        errorText.innerText = 'Sensor kamera tidak ditemukan pada perangkat ini. Silakan gunakan Kamera Bawaan HP atau Galeri.';
+      } else if (err && err.name === 'NotSupportedError') {
+        errorText.innerText = err.message || 'Kamera langsung tidak didukung pada peramban ini.';
+      } else {
+        errorText.innerText = 'Kamera tidak dapat dimulai (' + (err ? (err.name || err.message) : 'Akses Dibatasi') + '). Silakan gunakan tombol Kamera Bawaan HP.';
+      }
+    }
+
+    function triggerNativeCamera() {
+      lastCameraMode = 'native';
+      stopCameraStream();
+      closeLiveCamera();
+      const input = document.getElementById('camera-input');
+      if (input) {
+        input.click();
+      }
+    }
+
+    function triggerGalleryPicker() {
+      stopCameraStream();
+      closeLiveCamera();
+      const input = document.getElementById('gallery-input');
+      if (input) {
+        input.click();
+      }
+    }
+
+    function triggerPdfPicker() {
+      stopCameraStream();
+      closeLiveCamera();
+      const input = document.getElementById('pdf-input');
+      if (input) {
+        input.click();
+      }
+    }
+
+    function onSourceFilePicked(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) {
+        event.target.value = '';
+        return;
+      }
+
+      // Validasi gambar cerdas untuk iOS Safari & Huawei EMUI/HarmonyOS (menerima file walau MIME-type kosong)
+      const fileName = file.name || '';
+      const isImage = (file.type && file.type.startsWith('image/')) ||
+                      /\.(jpe?g|png|webp|heic|heif|bmp|tiff?)$/i.test(fileName) ||
+                      (!file.type && file.size > 0);
+
+      if (!isImage) {
+        event.target.value = '';
+        alert('Harap pilih file gambar dokumen yang valid.');
         return;
       }
 
       showProcessing('Membuka Foto...', 'Menyiapkan deteksi tepi dokumen.');
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
+
+      // Gunakan URL.createObjectURL untuk performa kilat tanpa membebani memori JavaScript heap
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = function() {
+        URL.revokeObjectURL(objectUrl);
+        event.target.value = '';
+
+        // Safe Downscaling: Mencegah browser tab crash akibat Out-of-Memory pada kamera 50MP/108MP (Huawei XMAGE & iPhone 48MP)
+        const maxDimension = 2400; // Optimal untuk resolusi cetak A4 300 DPI super tajam
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+
+        if (w > maxDimension || h > maxDimension) {
+          const scale = maxDimension / Math.max(w, h);
+          const targetW = Math.round(w * scale);
+          const targetH = Math.round(h * scale);
+
+          const downscaleCanvas = document.createElement('canvas');
+          downscaleCanvas.width = targetW;
+          downscaleCanvas.height = targetH;
+          const ctx = downscaleCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+
+          const downscaledImg = new Image();
+          downscaledImg.onload = function() {
+            hideProcessing();
+            openCropModalForImage(downscaledImg, null);
+          };
+          downscaledImg.onerror = function() {
+            hideProcessing();
+            openCropModalForImage(img, null);
+          };
+          downscaledImg.src = downscaleCanvas.toDataURL('image/jpeg', 0.95);
+        } else {
           hideProcessing();
           openCropModalForImage(img, null);
-        };
-        img.onerror = function() {
-          hideProcessing();
-          alert('Gagal memuat gambar.');
-        };
-        img.src = e.target.result;
+        }
       };
-      reader.readAsDataURL(file);
+
+      img.onerror = function() {
+        URL.revokeObjectURL(objectUrl);
+        event.target.value = '';
+        hideProcessing();
+        alert('Gagal memuat foto dokumen. Pastikan format didukung dan memori browser mencukupi.');
+      };
+
+      img.src = objectUrl;
     }
 
     function openCropModalForImage(img, pageIndex = null) {
@@ -1818,12 +2255,11 @@
           updateWorkspaceUi();
           hideProcessing();
 
-          // 6. Alur Beruntun: jika memilih + Foto Lagi, langsung picu kamera untuk lembar berikutnya!
+          // 6. Alur Beruntun: jika memilih + Foto Lagi, langsung buka Live Camera untuk lembar berikutnya!
           if (action === 'next_photo' && !isEditing) {
             setTimeout(() => {
-              const camInput = document.getElementById('camera-input');
-              if (camInput) camInput.click();
-            }, 250);
+              openLiveCamera();
+            }, 200);
           }
         } catch (err) {
           hideProcessing();

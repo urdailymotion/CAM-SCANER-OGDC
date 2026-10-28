@@ -8,6 +8,15 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
 
 ## 🌟 Fitur Utama
 
+- **Universal Dual-Engine Camera (Kompatibel Penuh iPhone & Huawei)**:
+  - **Kamera Scan (Live Viewfinder WebRTC)**: Jendela bidik kamera langsung di layar browser dengan panduan bingkai dokumen A4, tombol senter/flash, pembalik kamera depan/belakang, dan rana instan tanpa keluar aplikasi.
+  - **Kamera HP (Native Camera Intent)**: Jalur akses langsung ke aplikasi kamera bawaan sistem HP dengan penanganan event non-blocking.
+  - **Solusi Kompatibilitas Khusus iOS Safari & Huawei EMUI/HarmonyOS**:
+    - Menghilangkan `display: none` pada elemen input agar Safari iOS dan EMUI tidak memblokir event klik pengguna.
+    - Validasi file toleran yang menerima foto kamera meskipun sistem operasi mengembalikan MIME-type kosong (`""`).
+    - Pemuatan memori aman (*Zero-OOM*) menggunakan `URL.createObjectURL` dan auto-downscale ke 2400px untuk mencegah peramban me-refresh/crash saat memproses foto kamera resolusi tinggi (48MP/108MP).
+    - Alur pemindaian beruntun (**+ Foto Lagi**) yang dapat membuka kamera berulang kali tanpa terhalang pembatasan gesture Safari iOS.
+
 - **PWA (Progressive Web App) Installable**:
   - Tombol **"Pasang Aplikasi"** langsung di bilah navigasi atas (bebas halangan navigasi bawah).
   - Berjalan dalam mode *standalone* layar penuh tanpa bilah URL browser, persis seperti aplikasi native Android/iOS.
