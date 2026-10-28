@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OGDC PPA CamScanner Pro PDF v4.4 - PWA Installable & True Blank Edition -->
+<!-- OGDC PPA CamScanner Pro PDF v5.4 - Intelligent Paper Auto-Detect & A4 Snapping Edition -->
 <html lang="id">
 <head>
   <meta charset="UTF-8">
@@ -403,7 +403,7 @@
       </button>
       <div class="text-center min-w-0">
         <h3 class="font-extrabold uppercase text-xs sm:text-sm tracking-wide truncate">Sesuaikan Sudut</h3>
-        <p class="text-[9px] text-emerald-400 font-semibold uppercase truncate">Tarik 4 Sudut Kertas</p>
+        <p id="crop-status-sub" class="text-[9px] text-emerald-400 font-semibold uppercase truncate">Deteksi Ukuran Kertas</p>
       </div>
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <!-- Tombol Lanjut & Foto Lembar Berikutnya (Batch Scan) -->
@@ -426,25 +426,29 @@
 
     <!-- Bottom Crop Toolbar -->
     <div class="p-3 bg-slate-950/90 backdrop-blur-sm flex items-center justify-around z-20 border-t border-slate-800">
-      <button onclick="rotateCropImage(-90)" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
+      <button type="button" onclick="rotateCropImage(-90)" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
         <i class="fa-solid fa-rotate-left text-base"></i>
-        <span class="text-[9px] font-bold uppercase">Putar Kiri</span>
+        <span class="text-[9px] font-bold uppercase">Putar</span>
       </button>
-      <button onclick="insetCropMargin(0.02)" class="flex flex-col items-center gap-1 text-amber-400 hover:text-amber-300 active:scale-90 transition-transform">
+      <button type="button" onclick="snapCropToA4()" class="flex flex-col items-center gap-1 text-cyan-400 hover:text-cyan-300 active:scale-90 transition-transform" title="Kunci Proporsi Standar Kertas A4 (1 : 1.414)">
+        <i class="fa-solid fa-file-lines text-base"></i>
+        <span class="text-[9px] font-bold uppercase">Pas A4</span>
+      </button>
+      <button type="button" onclick="autoDetectDocumentCorners()" class="flex flex-col items-center gap-1 text-emerald-400 hover:text-emerald-300 active:scale-90 transition-transform" title="Deteksi AI Batas & Ukuran Kertas">
+        <i class="fa-solid fa-wand-magic-sparkles text-base"></i>
+        <span class="text-[9px] font-bold uppercase">Auto AI</span>
+      </button>
+      <button type="button" onclick="insetCropMargin(0.025)" class="flex flex-col items-center gap-1 text-amber-400 hover:text-amber-300 active:scale-90 transition-transform" title="Pangkas Tepi Meja ke Dalam">
         <i class="fa-solid fa-crop text-base"></i>
         <span class="text-[9px] font-bold uppercase">Kikis Meja</span>
       </button>
-      <button onclick="autoDetectDocumentCorners()" class="flex flex-col items-center gap-1 text-emerald-400 hover:text-emerald-300 active:scale-90 transition-transform">
-        <i class="fa-solid fa-wand-magic-sparkles text-base"></i>
-        <span class="text-[9px] font-bold uppercase">Auto Deteksi</span>
-      </button>
-      <button onclick="resetCropToFull()" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
+      <button type="button" onclick="resetCropToFull()" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
         <i class="fa-solid fa-expand text-base"></i>
         <span class="text-[9px] font-bold uppercase">Penuh</span>
       </button>
-      <button onclick="rotateCropImage(90)" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
+      <button type="button" onclick="rotateCropImage(90)" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white active:scale-90 transition-transform">
         <i class="fa-solid fa-rotate-right text-base"></i>
-        <span class="text-[9px] font-bold uppercase">Putar Kanan</span>
+        <span class="text-[9px] font-bold uppercase">Putar</span>
       </button>
     </div>
 
@@ -907,30 +911,68 @@
     // 5. CAMSCANNER CAPTURE & CROP WORKFLOW
     // ----------------------------------------------------
     function onSourceFilePicked(event) {
-      const file = event.target.files[0];
+      const file = event.target.files && event.target.files[0];
       event.target.value = '';
       if (!file) return;
 
-      if (!file.type.startsWith('image/')) {
-        alert('Harap pilih file gambar dokumen.');
+      const fileName = file.name || '';
+      const isImage = (file.type && file.type.startsWith('image/')) ||
+                      /\.(jpe?g|png|webp|heic|heif|bmp|tiff?)$/i.test(fileName) ||
+                      (!file.type && file.size > 0);
+
+      if (!isImage) {
+        alert('Harap pilih file gambar dokumen yang valid.');
         return;
       }
 
-      showProcessing('Membuka Foto...', 'Menyiapkan deteksi tepi dokumen.');
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
+      showProcessing('Membuka Foto...', 'Menganalisis batas & ukuran kertas...');
+
+      // URL.createObjectURL untuk performa kilat tanpa lonjakan memori JavaScript heap
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = function() {
+        URL.revokeObjectURL(objectUrl);
+
+        // Safe Downscaling: Cegah browser crash/reload akibat kamera resolusi tinggi 48MP/108MP
+        const maxDimension = 2400; // Optimal untuk kualitas cetak A4 300 DPI
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+
+        if (w > maxDimension || h > maxDimension) {
+          const scale = maxDimension / Math.max(w, h);
+          const targetW = Math.round(w * scale);
+          const targetH = Math.round(h * scale);
+
+          const downscaleCanvas = document.createElement('canvas');
+          downscaleCanvas.width = targetW;
+          downscaleCanvas.height = targetH;
+          const ctx = downscaleCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+
+          const downscaledImg = new Image();
+          downscaledImg.onload = function() {
+            hideProcessing();
+            openCropModalForImage(downscaledImg, null);
+          };
+          downscaledImg.onerror = function() {
+            hideProcessing();
+            openCropModalForImage(img, null);
+          };
+          downscaledImg.src = downscaleCanvas.toDataURL('image/jpeg', 0.95);
+        } else {
           hideProcessing();
           openCropModalForImage(img, null);
-        };
-        img.onerror = function() {
-          hideProcessing();
-          alert('Gagal memuat gambar.');
-        };
-        img.src = e.target.result;
+        }
       };
-      reader.readAsDataURL(file);
+
+      img.onerror = function() {
+        URL.revokeObjectURL(objectUrl);
+        hideProcessing();
+        alert('Gagal memuat foto dokumen. Pastikan format foto didukung.');
+      };
+
+      img.src = objectUrl;
     }
 
     function openCropModalForImage(img, pageIndex = null) {
@@ -945,10 +987,11 @@
 
       setupCropCanvas();
 
-      // Deteksi otomatis sudut fisik kertas
+      // Deteksi otomatis sudut fisik kertas dan ukuran kertas
       autoDetectDocumentCorners();
 
       drawCropCanvas();
+      updateCropStatusText();
     }
 
     function cancelCrop() {
@@ -959,183 +1002,264 @@
       cropEditingPageIndex = null;
     }
 
-    // Auto Detect 4 Document Corners (CamScanner Pro AI Auto-Crop Engine)
+    // ====================================================
+    // ADVANCED DOCUMENT CORNER & PAPER BOUNDS AUTO-DETECTION
+    // (CamScanner Pro AI Vision Engine)
+    // ====================================================
     function autoDetectDocumentCorners() {
       if (!rawCropImage) return;
 
       const w = rawCropImage.naturalWidth || rawCropImage.width;
       const h = rawCropImage.naturalHeight || rawCropImage.height;
 
-      // 1. Instant Edge Gradient Detection (Pure Canvas fallback)
-      let detected = detectPaperCornersPureCanvas(rawCropImage);
+      let detected = null;
+      let detectionSource = 'ai_opencv';
 
-      // 2. OpenCV Multi-Pass Engine (Otsu + Canny + Adaptive Gaussian + Shoelace Quad Maximization)
+      // 1. Tier 1: OpenCV Multi-Pass AI Pipeline (Canny Multi-Scale + Adaptive Gaussian + Convex Hull)
       if (window.openCvReady && window.cv && window.cv.Mat) {
         try {
-          const cv = window.cv;
-          const maxDim = 440;
-          const scale = Math.min(1, maxDim / Math.max(w, h));
-          const dw = Math.round(w * scale);
-          const dh = Math.round(h * scale);
-          const pad = 4;
-          const paddedW = dw + pad * 2;
-          const paddedH = dh + pad * 2;
-          const totalArea = paddedW * paddedH;
-
-          const tmpCanvas = document.createElement('canvas');
-          tmpCanvas.width = dw;
-          tmpCanvas.height = dh;
-          const ctx = tmpCanvas.getContext('2d');
-          ctx.drawImage(rawCropImage, 0, 0, dw, dh);
-
-          const src = cv.imread(tmpCanvas);
-          const gray = new cv.Mat();
-          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-
-          const blurred = new cv.Mat();
-          cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
-
-          // Padded Mat with 4px black border so document touching edges is always fully enclosed
-          const padded = new cv.Mat();
-          cv.copyMakeBorder(blurred, padded, pad, pad, pad, pad, cv.BORDER_CONSTANT, new cv.Scalar(0));
-
-          let bestQuad = null;
-          let bestScore = 0;
-
-          // Helper to analyze a binary/edge mask
-          const evaluateMask = (mask) => {
-            const contours = new cv.MatVector();
-            const hier = new cv.Mat();
-            cv.findContours(mask, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-            for (let i = 0; i < contours.size(); i++) {
-              const cnt = contours.get(i);
-              const area = cv.contourArea(cnt);
-              // Must cover between 8% and 99% of total area
-              if (area > totalArea * 0.08 && area < totalArea * 0.99) {
-                const peri = cv.arcLength(cnt, true); // SAFE directly on cnt!
-                let quadPts = null;
-
-                // Pass A: ApproxPolyDP directly on cnt across varying epsilons (0.015 to 0.065)
-                for (let eps = 0.015; eps <= 0.065; eps += 0.005) {
-                  const approx = new cv.Mat();
-                  cv.approxPolyDP(cnt, approx, eps * peri, true);
-                  if (approx.rows === 4 && cv.isContourConvex(approx)) {
-                    const d = approx.data32S;
-                    quadPts = [
-                      { x: Math.max(0, Math.min(w, (d[0] - pad) / scale)), y: Math.max(0, Math.min(h, (d[1] - pad) / scale)) },
-                      { x: Math.max(0, Math.min(w, (d[2] - pad) / scale)), y: Math.max(0, Math.min(h, (d[3] - pad) / scale)) },
-                      { x: Math.max(0, Math.min(w, (d[4] - pad) / scale)), y: Math.max(0, Math.min(h, (d[5] - pad) / scale)) },
-                      { x: Math.max(0, Math.min(w, (d[6] - pad) / scale)), y: Math.max(0, Math.min(h, (d[7] - pad) / scale)) }
-                    ];
-                    approx.delete();
-                    break;
-                  }
-                  // If approx has 5 to 10 vertices, find the 4 outermost vertices that maximize quad area
-                  if (approx.rows >= 5 && approx.rows <= 10 && !quadPts) {
-                    const polyPts = [];
-                    for (let p = 0; p < approx.rows; p++) {
-                      polyPts.push({
-                        x: Math.max(0, Math.min(w, (approx.data32S[p * 2] - pad) / scale)),
-                        y: Math.max(0, Math.min(h, (approx.data32S[p * 2 + 1] - pad) / scale))
-                      });
-                    }
-                    const best4 = findBestQuadFromPoints(polyPts);
-                    if (best4 && best4.length === 4) {
-                      quadPts = best4;
-                    }
-                  }
-                  approx.delete();
-                  if (quadPts) break;
-                }
-
-                // Pass B: Fallback to rotated bounding rectangle (minAreaRect)
-                if (!quadPts) {
-                  try {
-                    const rect = cv.minAreaRect(cnt);
-                    const angle = (rect.angle * Math.PI) / 180;
-                    const cos = Math.cos(angle), sin = Math.sin(angle);
-                    const hw = rect.size.width / 2, hh = rect.size.height / 2;
-                    const cx = rect.center.x, cy = rect.center.y;
-                    quadPts = [
-                      { x: Math.max(0, Math.min(w, (cx - hw * cos + hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy - hw * sin - hh * cos - pad) / scale)) },
-                      { x: Math.max(0, Math.min(w, (cx + hw * cos + hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy + hw * sin - hh * cos - pad) / scale)) },
-                      { x: Math.max(0, Math.min(w, (cx + hw * cos - hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy + hw * sin + hh * cos - pad) / scale)) },
-                      { x: Math.max(0, Math.min(w, (cx - hw * cos - hh * sin - pad) / scale)), y: Math.max(0, Math.min(h, (cy - hw * sin + hh * cos - pad) / scale)) }
-                    ];
-                  } catch (err) {}
-                }
-
-                if (quadPts && area > bestScore) {
-                  bestScore = area;
-                  bestQuad = orderQuadPoints(quadPts);
-                }
-              }
-              cnt.delete();
-            }
-            contours.delete();
-            hier.delete();
-          };
-
-          // 1. Otsu threshold with morphological closing (Best for white paper on desk)
-          const otsu = new cv.Mat();
-          cv.threshold(padded, otsu, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
-          const k15 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(15, 15));
-          cv.morphologyEx(otsu, otsu, cv.MORPH_CLOSE, k15);
-          evaluateMask(otsu);
-
-          // Inverted Otsu if paper is dark
-          if (!bestQuad) {
-            const otsuInv = new cv.Mat();
-            cv.bitwise_not(otsu, otsuInv);
-            evaluateMask(otsuInv);
-            otsuInv.delete();
-          }
-          otsu.delete();
-
-          // 2. Canny edge detector with morphological closing (For edge contrast between paper and desk)
-          if (!bestQuad) {
-            const edges = new cv.Mat();
-            cv.Canny(padded, edges, 25, 100);
-            const k9 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(9, 9));
-            cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, k9);
-            cv.dilate(edges, edges, k9);
-            evaluateMask(edges);
-            edges.delete(); k9.delete();
-          }
-
-          // 3. Adaptive threshold (For uneven lighting / desk shadows)
-          if (!bestQuad) {
-            const adap = new cv.Mat();
-            cv.adaptiveThreshold(padded, adap, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 5);
-            cv.morphologyEx(adap, adap, cv.MORPH_CLOSE, k15);
-            evaluateMask(adap);
-            if (!bestQuad) {
-              const adapInv = new cv.Mat();
-              cv.bitwise_not(adap, adapInv);
-              evaluateMask(adapInv);
-              adapInv.delete();
-            }
-            adap.delete();
-          }
-
-          k15.delete();
-
-          if (bestQuad) {
-            detected = bestQuad;
-          }
-
-          src.delete(); gray.delete(); blurred.delete(); padded.delete();
-        } catch (e) {
-          console.warn('OpenCV corner detection error: ', e);
+          detected = detectDocumentWithOpenCV(rawCropImage, w, h);
+        } catch (cvErr) {
+          console.warn('OpenCV auto-crop error, falling back to Pure Canvas: ', cvErr);
         }
+      }
+
+      // 2. Tier 2: Pure Canvas Sobel Gradient & Boundary Scanner (Runs 100% offline & without OpenCV)
+      if (!detected) {
+        detected = detectPaperCornersPureCanvas(rawCropImage);
+        detectionSource = 'pure_canvas';
+      }
+
+      // 3. Fallback: Proportional Centered A4 Document Frame (86% coverage)
+      if (!detected) {
+        detected = getCenteredA4Quad(w, h);
+        detectionSource = 'a4_default';
       }
 
       cropCorners = detected;
       drawCropCanvas();
+      updateCropStatusText();
+
+      if (detectionSource === 'ai_opencv' || detectionSource === 'pure_canvas') {
+        showToast('Batas Kertas Dokumen Berhasil Dideteksi!');
+      } else {
+        showToast('Kertas A4 Otomatis Disesuaikan');
+      }
     }
 
-    // Shoelace Quadrilateral Area Maximizer: extracts the 4 true paper corners from a set of vertices
+    // OpenCV Multi-Pass Paper Detection with Quality Scoring
+    function detectDocumentWithOpenCV(image, w, h) {
+      const cv = window.cv;
+      const maxDim = 500;
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      const dw = Math.round(w * scale);
+      const dh = Math.round(h * scale);
+      const pad = 10;
+      const paddedW = dw + pad * 2;
+      const paddedH = dh + pad * 2;
+      const totalArea = paddedW * paddedH;
+
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = dw;
+      tmpCanvas.height = dh;
+      const ctx = tmpCanvas.getContext('2d');
+      ctx.drawImage(image, 0, 0, dw, dh);
+
+      const src = cv.imread(tmpCanvas);
+      const gray = new cv.Mat();
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+      // Gaussian blur to smooth out inner text & textures while preserving paper edges
+      const blurred = new cv.Mat();
+      cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 1.2);
+
+      const padded = new cv.Mat();
+      cv.copyMakeBorder(blurred, padded, pad, pad, pad, pad, cv.BORDER_CONSTANT, new cv.Scalar(0));
+
+      let bestQuad = null;
+      let highestScore = -Infinity;
+
+      // Function to score and evaluate candidate contours from a mask
+      function evaluateContourMask(mask, passTypeBonus = 0) {
+        const contours = new cv.MatVector();
+        const hier = new cv.Mat();
+        cv.findContours(mask, contours, hier, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+        for (let i = 0; i < contours.size(); i++) {
+          const cnt = contours.get(i);
+          const area = cv.contourArea(cnt);
+
+          // Paper must occupy between 12% and 97% of the total frame
+          if (area > totalArea * 0.12 && area < totalArea * 0.97) {
+            const hull = new cv.Mat();
+            cv.convexHull(cnt, hull, false, true);
+            const peri = cv.arcLength(hull, true);
+
+            let quadPts = null;
+
+            // Varying approxPolyDP epsilons on convex hull
+            for (let eps = 0.015; eps <= 0.065; eps += 0.005) {
+              const approx = new cv.Mat();
+              cv.approxPolyDP(hull, approx, eps * peri, true);
+
+              if (approx.rows === 4 && cv.isContourConvex(approx)) {
+                const d = approx.data32S;
+                quadPts = [
+                  { x: Math.max(0, Math.min(w, (d[0] - pad) / scale)), y: Math.max(0, Math.min(h, (d[1] - pad) / scale)) },
+                  { x: Math.max(0, Math.min(w, (d[2] - pad) / scale)), y: Math.max(0, Math.min(h, (d[3] - pad) / scale)) },
+                  { x: Math.max(0, Math.min(w, (d[4] - pad) / scale)), y: Math.max(0, Math.min(h, (d[5] - pad) / scale)) },
+                  { x: Math.max(0, Math.min(w, (d[6] - pad) / scale)), y: Math.max(0, Math.min(h, (d[7] - pad) / scale)) }
+                ];
+                approx.delete();
+                break;
+              }
+
+              // If approx has 5 to 10 points, find the 4 outermost vertices
+              if (approx.rows >= 5 && approx.rows <= 10 && !quadPts) {
+                const polyPts = [];
+                for (let p = 0; p < approx.rows; p++) {
+                  polyPts.push({
+                    x: Math.max(0, Math.min(w, (approx.data32S[p * 2] - pad) / scale)),
+                    y: Math.max(0, Math.min(h, (approx.data32S[p * 2 + 1] - pad) / scale))
+                  });
+                }
+                const best4 = findBestQuadFromPoints(polyPts);
+                if (best4 && best4.length === 4) {
+                  quadPts = best4;
+                }
+              }
+              approx.delete();
+              if (quadPts) break;
+            }
+
+            hull.delete();
+
+            if (quadPts) {
+              const ordered = orderQuadPoints(quadPts);
+              const score = scoreDocumentQuad(ordered, w, h, area / totalArea) + passTypeBonus;
+              if (score > highestScore) {
+                highestScore = score;
+                bestQuad = ordered;
+              }
+            }
+          }
+          cnt.delete();
+        }
+        contours.delete();
+        hier.delete();
+      }
+
+      const k5 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+      const k7 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(7, 7));
+
+      try {
+        // Pass A: Multi-Threshold Canny Edges (High precision for paper lines)
+        const cannyPairs = [
+          [35, 110],
+          [20, 75],
+          [55, 160]
+        ];
+
+        for (const [tLow, tHigh] of cannyPairs) {
+          const edges = new cv.Mat();
+          cv.Canny(padded, edges, tLow, tHigh);
+          cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, k7);
+          cv.dilate(edges, edges, k5);
+          evaluateContourMask(edges, 40); // +40 priority bonus for Canny edges
+          edges.delete();
+          if (highestScore > 85) break;
+        }
+
+        // Pass B: Adaptive Gaussian Thresholding (Handles lighting gradients / desk shadows)
+        if (highestScore < 85) {
+          const adap = new cv.Mat();
+          cv.adaptiveThreshold(padded, adap, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 4);
+          cv.morphologyEx(adap, adap, cv.MORPH_CLOSE, k7);
+          evaluateContourMask(adap, 20);
+          adap.delete();
+        }
+
+        // Pass C: Otsu Thresholding (For contrast between paper and dark desk)
+        if (highestScore < 75) {
+          const otsu = new cv.Mat();
+          cv.threshold(padded, otsu, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+          const k11 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(11, 11));
+          cv.morphologyEx(otsu, otsu, cv.MORPH_CLOSE, k11);
+          evaluateContourMask(otsu, 10);
+
+          // Inverted Otsu if desk is bright
+          const otsuInv = new cv.Mat();
+          cv.bitwise_not(otsu, otsuInv);
+          cv.morphologyEx(otsuInv, otsuInv, cv.MORPH_CLOSE, k11);
+          evaluateContourMask(otsuInv, 10);
+
+          otsu.delete(); otsuInv.delete(); k11.delete();
+        }
+      } finally {
+        k5.delete(); k7.delete();
+        src.delete(); gray.delete(); blurred.delete(); padded.delete();
+      }
+
+      return bestQuad;
+    }
+
+    // Document Quadrilateral Quality & Aspect Ratio Scoring
+    function scoreDocumentQuad(quad, w, h, areaRatio) {
+      if (!quad || !quad.tl || !quad.tr || !quad.br || !quad.bl) return -999;
+
+      // 1. Area Score: prefer documents occupying 30% to 92% of the frame
+      let score = areaRatio * 60;
+      if (areaRatio > 0.35 && areaRatio < 0.92) {
+        score += 25;
+      }
+
+      // 2. Full Frame Border Penalty: if corners touch outer bounds, it's just the camera screen!
+      const marginX = w * 0.025;
+      const marginY = h * 0.025;
+      let touchingBorders = 0;
+      const pts = [quad.tl, quad.tr, quad.br, quad.bl];
+      for (const p of pts) {
+        if (p.x <= marginX || p.x >= w - marginX || p.y <= marginY || p.y >= h - marginY) {
+          touchingBorders++;
+        }
+      }
+      if (touchingBorders >= 4) {
+        score -= 60; // Penalty for picking the full photo border
+      } else if (touchingBorders === 3) {
+        score -= 25;
+      }
+
+      // 3. Aspect Ratio Check: A4 standard is 1.414 (or 0.707)
+      const topW = Math.hypot(quad.tr.x - quad.tl.x, quad.tr.y - quad.tl.y);
+      const botW = Math.hypot(quad.br.x - quad.bl.x, quad.br.y - quad.bl.y);
+      const leftH = Math.hypot(quad.bl.x - quad.tl.x, quad.bl.y - quad.tl.y);
+      const rightH = Math.hypot(quad.br.x - quad.tr.x, quad.br.y - quad.tr.y);
+
+      const avgW = (topW + botW) / 2;
+      const avgH = (leftH + rightH) / 2;
+      if (avgW < 10 || avgH < 10) return -999;
+
+      const ratio = (avgW > avgH) ? (avgW / avgH) : (avgH / avgW);
+      // Standard documents: A4 = 1.414, Folio = 1.64, Letter = 1.29
+      if (ratio >= 1.25 && ratio <= 1.62) {
+        score += 40; // High bonus for authentic A4 document proportion!
+      } else if (ratio >= 1.10 && ratio <= 1.85) {
+        score += 15;
+      } else {
+        score -= 30; // Distorted shape penalty
+      }
+
+      // 4. Perspective Trapezoid Check (nearly parallel opposite edges)
+      const wDiff = Math.abs(topW - botW) / Math.max(topW, botW);
+      const hDiff = Math.abs(leftH - rightH) / Math.max(leftH, rightH);
+      if (wDiff < 0.25 && hDiff < 0.25) {
+        score += 20;
+      }
+
+      return score;
+    }
+
+    // Shoelace Quadrilateral Area Maximizer
     function findBestQuadFromPoints(pts) {
       if (!pts || pts.length < 4) return null;
       if (pts.length === 4) return pts;
@@ -1176,12 +1300,12 @@
       return bestQuad;
     }
 
-    // Pure Canvas Document Corner Detection: Otsu Thresholding + Perimeter Scan + Rosebrock Tilted Quad Ordering
+    // Pure Canvas Document Detector: Sobel Edge Gradients + 4-Direction Scanning + Line Intersection
     function detectPaperCornersPureCanvas(image) {
       const w = image.naturalWidth || image.width;
       const h = image.naturalHeight || image.height;
 
-      const scale = Math.min(1, 320 / Math.max(w, h));
+      const scale = Math.min(1, 360 / Math.max(w, h));
       const dw = Math.round(w * scale);
       const dh = Math.round(h * scale);
 
@@ -1193,115 +1317,273 @@
       const imgData = ctx.getImageData(0, 0, dw, dh);
       const data = imgData.data;
 
-      // 1. Calculate luminance histogram & total
-      const hist = new Int32Array(256);
-      const numPixels = dw * dh;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const lum = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-        hist[lum]++;
+      // 1. Grayscale luminance buffer
+      const gray = new Uint8Array(dw * dh);
+      for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+        gray[p] = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
       }
 
-      // 2. Otsu threshold calculation
-      let sum = 0;
-      for (let t = 0; t < 256; t++) sum += t * hist[t];
-      let sumB = 0, wB = 0, wF = 0, varMax = 0, thresh = 128;
-      for (let t = 0; t < 256; t++) {
-        wB += hist[t]; if (!wB) continue;
-        wF = numPixels - wB; if (!wF) break;
-        sumB += t * hist[t];
-        const mB = sumB / wB;
-        const mF = (sum - sumB) / wF;
-        const v = wB * wF * (mB - mF) * (mB - mF);
-        if (v > varMax) {
-          varMax = v;
-          thresh = t;
+      // 2. Sobel edge gradient magnitude
+      const grad = new Float32Array(dw * dh);
+      let maxGrad = 0;
+      for (let y = 1; y < dh - 1; y++) {
+        for (let x = 1; x < dw - 1; x++) {
+          const idx = y * dw + x;
+          const gx = (-gray[idx - dw - 1] + gray[idx - dw + 1]) +
+                     2 * (-gray[idx - 1] + gray[idx + 1]) +
+                     (-gray[idx + dw - 1] + gray[idx + dw + 1]);
+          const gy = (-gray[idx - dw - 1] - 2 * gray[idx - dw] - gray[idx - dw + 1]) +
+                     (gray[idx + dw - 1] + 2 * gray[idx + dw] + gray[idx + dw + 1]);
+          const mag = Math.abs(gx) + Math.abs(gy);
+          grad[idx] = mag;
+          if (mag > maxGrad) maxGrad = mag;
         }
       }
 
-      // Check if paper is bright (standard white paper on desk) or dark
-      let isPaperBright = true;
-      let countBright = 0;
-      for (let t = thresh; t < 256; t++) countBright += hist[t];
-      if (countBright < numPixels * 0.12 || countBright > numPixels * 0.88) {
-        const countDark = numPixels - countBright;
-        if (countDark >= numPixels * 0.12 && countDark <= numPixels * 0.88) {
-          isPaperBright = false;
-        }
-      }
+      const edgeThreshold = Math.max(50, maxGrad * 0.20);
 
-      // 3. Scan boundary perimeter pixels of the paper
-      const edgePts = [];
-      const isPaper = (idx) => {
-        const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-        return isPaperBright ? (lum >= thresh) : (lum < thresh);
-      };
+      // 3. Scan from 4 borders inwards toward center to locate 4 document edges
+      const cx = Math.floor(dw / 2);
+      const cy = Math.floor(dh / 2);
 
-      // Scan rows
-      for (let y = 3; y < dh - 3; y += 3) {
-        let firstX = -1, lastX = -1;
-        for (let x = 3; x < dw - 3; x += 2) {
-          const idx = (y * dw + x) * 4;
-          if (isPaper(idx)) {
-            if (firstX === -1) firstX = x;
-            lastX = x;
+      const topEdgePts = [];
+      const bottomEdgePts = [];
+      const leftEdgePts = [];
+      const rightEdgePts = [];
+
+      // Scan vertical columns for Top and Bottom edges
+      const xStart = Math.round(dw * 0.15);
+      const xEnd = Math.round(dw * 0.85);
+      for (let x = xStart; x <= xEnd; x += 4) {
+        // From top down to center
+        for (let y = 4; y < cy; y++) {
+          if (grad[y * dw + x] >= edgeThreshold) {
+            topEdgePts.push({ x, y });
+            break;
           }
         }
-        if (firstX !== -1 && (lastX - firstX) > dw * 0.22) {
-          edgePts.push({ x: firstX, y }, { x: lastX, y });
-        }
-      }
-
-      // Scan columns
-      for (let x = 3; x < dw - 3; x += 3) {
-        let firstY = -1, lastY = -1;
-        for (let y = 3; y < dh - 3; y += 2) {
-          const idx = (y * dw + x) * 4;
-          if (isPaper(idx)) {
-            if (firstY === -1) firstY = y;
-            lastY = y;
+        // From bottom up to center
+        for (let y = dh - 5; y > cy; y--) {
+          if (grad[y * dw + x] >= edgeThreshold) {
+            bottomEdgePts.push({ x, y });
+            break;
           }
         }
-        if (firstY !== -1 && (lastY - firstY) > dh * 0.22) {
-          edgePts.push({ x, y: firstY }, { x, y: lastY });
+      }
+
+      // Scan horizontal rows for Left and Right edges
+      const yStart = Math.round(dh * 0.15);
+      const yEnd = Math.round(dh * 0.85);
+      for (let y = yStart; y <= yEnd; y += 4) {
+        // From left inward to center
+        for (let x = 4; x < cx; x++) {
+          if (grad[y * dw + x] >= edgeThreshold) {
+            leftEdgePts.push({ x, y });
+            break;
+          }
+        }
+        // From right inward to center
+        for (let x = dw - 5; x > cx; x--) {
+          if (grad[y * dw + x] >= edgeThreshold) {
+            rightEdgePts.push({ x, y });
+            break;
+          }
         }
       }
 
-      // If clear paper edges were found (at least 16 perimeter points)
-      if (edgePts.length >= 16) {
-        let minSum = Infinity, maxSum = -Infinity;
-        let minDiff = Infinity, maxDiff = -Infinity;
-        let tl = edgePts[0], br = edgePts[0], tr = edgePts[0], bl = edgePts[0];
+      // Filter outliers using median filtering
+      function filterOutliers(pts, coordKey) {
+        if (pts.length < 5) return pts;
+        const vals = pts.map(p => p[coordKey]).sort((a, b) => a - b);
+        const median = vals[Math.floor(vals.length / 2)];
+        const maxDev = 24;
+        return pts.filter(p => Math.abs(p[coordKey] - median) <= maxDev);
+      }
 
-        edgePts.forEach(p => {
-          const s = p.x + p.y;
-          const d = p.y - p.x;
-          if (s < minSum) { minSum = s; tl = p; }
-          if (s > maxSum) { maxSum = s; br = p; }
-          if (d < minDiff) { minDiff = d; tr = p; }
-          if (d > maxDiff) { maxDiff = d; bl = p; }
-        });
+      const fTop = filterOutliers(topEdgePts, 'y');
+      const fBottom = filterOutliers(bottomEdgePts, 'y');
+      const fLeft = filterOutliers(leftEdgePts, 'x');
+      const fRight = filterOutliers(rightEdgePts, 'x');
 
-        const spanW = (tr.x - tl.x + br.x - bl.x) / 2;
-        const spanH = (bl.y - tl.y + br.y - tr.y) / 2;
+      // Helper to fit linear line y = a*x + b for horizontal edges
+      function fitHorizLine(pts) {
+        if (!pts || pts.length < 3) return null;
+        let sx = 0, sy = 0, sxx = 0, sxy = 0, n = pts.length;
+        for (const p of pts) { sx += p.x; sy += p.y; sxx += p.x * p.x; sxy += p.x * p.y; }
+        const denom = n * sxx - sx * sx;
+        if (Math.abs(denom) < 1e-4) return { a: 0, b: sy / n };
+        const a = (n * sxy - sx * sy) / denom;
+        const b = (sy - a * sx) / n;
+        return { a, b };
+      }
 
-        if (spanW > dw * 0.22 && spanH > dh * 0.22) {
-          return {
-            tl: { x: Math.max(0, Math.min(w, Math.round(tl.x / scale))), y: Math.max(0, Math.min(h, Math.round(tl.y / scale))) },
-            tr: { x: Math.max(0, Math.min(w, Math.round(tr.x / scale))), y: Math.max(0, Math.min(h, Math.round(tr.y / scale))) },
-            br: { x: Math.max(0, Math.min(w, Math.round(br.x / scale))), y: Math.max(0, Math.min(h, Math.round(br.y / scale))) },
-            bl: { x: Math.max(0, Math.min(w, Math.round(bl.x / scale))), y: Math.max(0, Math.min(h, Math.round(bl.y / scale))) }
-          };
+      // Helper to fit linear line x = a*y + b for vertical edges
+      function fitVertLine(pts) {
+        if (!pts || pts.length < 3) return null;
+        let sx = 0, sy = 0, syy = 0, sxy = 0, n = pts.length;
+        for (const p of pts) { sx += p.x; sy += p.y; syy += p.y * p.y; sxy += p.x * p.y; }
+        const denom = n * syy - sy * sy;
+        if (Math.abs(denom) < 1e-4) return { a: 0, b: sx / n };
+        const a = (n * sxy - sx * sy) / denom;
+        const b = (sx - a * sy) / n;
+        return { a, b };
+      }
+
+      // Intersect horizontal (y = a1*x + b1) and vertical (x = a2*y + b2)
+      function intersectHV(hLine, vLine) {
+        const denom = 1 - hLine.a * vLine.a;
+        if (Math.abs(denom) < 1e-4) return null;
+        const x = (vLine.a * hLine.b + vLine.b) / denom;
+        const y = hLine.a * x + hLine.b;
+        return { x, y };
+      }
+
+      const lineTop = fitHorizLine(fTop);
+      const lineBottom = fitHorizLine(fBottom);
+      const lineLeft = fitVertLine(fLeft);
+      const lineRight = fitVertLine(fRight);
+
+      if (lineTop && lineBottom && lineLeft && lineRight) {
+        const tl = intersectHV(lineTop, lineLeft);
+        const tr = intersectHV(lineTop, lineRight);
+        const br = intersectHV(lineBottom, lineRight);
+        const bl = intersectHV(lineBottom, lineLeft);
+
+        if (tl && tr && br && bl) {
+          const quadW = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+          const quadH = Math.hypot(bl.x - tl.x, bl.y - tl.y);
+
+          // Must form a reasonable quadrilateral covering > 20% of frame dimensions
+          if (quadW > dw * 0.25 && quadH > dh * 0.25) {
+            const clampX = (x) => Math.max(0, Math.min(w, Math.round(x / scale)));
+            const clampY = (y) => Math.max(0, Math.min(h, Math.round(y / scale)));
+            return {
+              tl: { x: clampX(tl.x), y: clampY(tl.y) },
+              tr: { x: clampX(tr.x), y: clampY(tr.y) },
+              br: { x: clampX(br.x), y: clampY(br.y) },
+              bl: { x: clampX(bl.x), y: clampY(bl.y) }
+            };
+          }
         }
       }
 
-      // Safe CamScanner fallback: 5% inner frame
+      return null;
+    }
+
+    // Centered Proportional A4 Paper Frame (1 : 1.4142)
+    function getCenteredA4Quad(w, h) {
+      const isPortrait = (h >= w);
+      let targetW, targetH;
+
+      if (isPortrait) {
+        targetH = Math.round(h * 0.86);
+        targetW = Math.round(targetH / 1.4142);
+        if (targetW > w * 0.90) {
+          targetW = Math.round(w * 0.90);
+          targetH = Math.round(targetW * 1.4142);
+        }
+      } else {
+        targetW = Math.round(w * 0.86);
+        targetH = Math.round(targetW / 1.4142);
+        if (targetH > h * 0.90) {
+          targetH = Math.round(h * 0.90);
+          targetW = Math.round(targetH * 1.4142);
+        }
+      }
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const hw = targetW / 2;
+      const hh = targetH / 2;
+
       return {
-        tl: { x: Math.round(w * 0.05), y: Math.round(h * 0.05) },
-        tr: { x: Math.round(w * 0.95), y: Math.round(h * 0.05) },
-        br: { x: Math.round(w * 0.95), y: Math.round(h * 0.95) },
-        bl: { x: Math.round(w * 0.05), y: Math.round(h * 0.95) }
+        tl: { x: Math.round(Math.max(0, cx - hw)), y: Math.round(Math.max(0, cy - hh)) },
+        tr: { x: Math.round(Math.min(w, cx + hw)), y: Math.round(Math.max(0, cy - hh)) },
+        br: { x: Math.round(Math.min(w, cx + hw)), y: Math.round(Math.min(h, cy + hh)) },
+        bl: { x: Math.round(Math.max(0, cx - hw)), y: Math.round(Math.min(h, cy + hh)) }
       };
+    }
+
+    // One-tap Snap to Proportional A4 Paper Size
+    function snapCropToA4() {
+      if (!rawCropImage) return;
+      const w = rawCropImage.naturalWidth || rawCropImage.width;
+      const h = rawCropImage.naturalHeight || rawCropImage.height;
+
+      // Centroid of current selection
+      const cx = (cropCorners.tl.x + cropCorners.tr.x + cropCorners.br.x + cropCorners.bl.x) / 4;
+      const cy = (cropCorners.tl.y + cropCorners.tr.y + cropCorners.br.y + cropCorners.bl.y) / 4;
+
+      const curW = Math.hypot(cropCorners.tr.x - cropCorners.tl.x, cropCorners.tr.y - cropCorners.tl.y);
+      const curH = Math.hypot(cropCorners.bl.x - cropCorners.tl.x, cropCorners.bl.y - cropCorners.tl.y);
+
+      const isPortrait = (curH >= curW);
+      let targetW, targetH;
+
+      if (isPortrait) {
+        targetH = Math.max(curH, curW * 1.4142);
+        targetW = targetH / 1.4142;
+        if (targetW > w * 0.96) {
+          targetW = w * 0.96;
+          targetH = targetW * 1.4142;
+        }
+        if (targetH > h * 0.96) {
+          targetH = h * 0.96;
+          targetW = targetH / 1.4142;
+        }
+      } else {
+        targetW = Math.max(curW, curH * 1.4142);
+        targetH = targetW / 1.4142;
+        if (targetW > w * 0.96) {
+          targetW = w * 0.96;
+          targetH = targetW * 1.4142;
+        }
+        if (targetH > h * 0.96) {
+          targetH = h * 0.96;
+          targetW = targetH / 1.4142;
+        }
+      }
+
+      const hw = targetW / 2;
+      const hh = targetH / 2;
+
+      const safeCx = Math.max(hw, Math.min(w - hw, cx));
+      const safeCy = Math.max(hh, Math.min(h - hh, cy));
+
+      cropCorners = {
+        tl: { x: Math.round(safeCx - hw), y: Math.round(safeCy - hh) },
+        tr: { x: Math.round(safeCx + hw), y: Math.round(safeCy - hh) },
+        br: { x: Math.round(safeCx + hw), y: Math.round(safeCy + hh) },
+        bl: { x: Math.round(safeCx - hw), y: Math.round(safeCy + hh) }
+      };
+
+      drawCropCanvas();
+      updateCropStatusText();
+      showToast('Kunci Proporsi Standar Kertas A4 (1 : 1.414)');
+    }
+
+    // Live Paper Size & Ratio Indicator
+    function updateCropStatusText() {
+      const sub = document.getElementById('crop-status-sub');
+      if (!sub || !rawCropImage) return;
+
+      const topW = Math.hypot(cropCorners.tr.x - cropCorners.tl.x, cropCorners.tr.y - cropCorners.tl.y);
+      const botW = Math.hypot(cropCorners.br.x - cropCorners.bl.x, cropCorners.br.y - cropCorners.bl.y);
+      const leftH = Math.hypot(cropCorners.bl.x - cropCorners.tl.x, cropCorners.bl.y - cropCorners.tl.y);
+      const rightH = Math.hypot(cropCorners.br.x - cropCorners.tr.x, cropCorners.br.y - cropCorners.tr.y);
+
+      const avgW = (topW + botW) / 2;
+      const avgH = (leftH + rightH) / 2;
+      if (avgW < 5 || avgH < 5) return;
+
+      const ratio = (avgW > avgH) ? (avgW / avgH) : (avgH / avgW);
+      if (ratio >= 1.30 && ratio <= 1.52) {
+        sub.innerHTML = '<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>Kertas A4 Terdeteksi (1 : 1.41)</span>';
+      } else if (ratio >= 1.53 && ratio <= 1.75) {
+        sub.innerHTML = '<span class="text-teal-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>Kertas F4 / Folio (1 : 1.64)</span>';
+      } else {
+        sub.innerHTML = '<span class="text-cyan-400 font-bold"><i class="fa-solid fa-expand mr-1"></i>Ukuran Kertas: ' + ratio.toFixed(2) + ' : 1</span>';
+      }
     }
 
     // Mathematical Quad Point Ordering: Clockwise from Top-Left
@@ -1346,11 +1628,12 @@
         bl: { x: 0, y: h }
       };
       drawCropCanvas();
+      updateCropStatusText();
       showToast('Area penuh dipilih');
     }
 
     // Inset Crop to shave off table borders with 1 tap
-    function insetCropMargin(amount = 0.035) {
+    function insetCropMargin(amount = 0.025) {
       if (!rawCropImage) return;
       const cx = (cropCorners.tl.x + cropCorners.tr.x + cropCorners.br.x + cropCorners.bl.x) / 4;
       const cy = (cropCorners.tl.y + cropCorners.tr.y + cropCorners.br.y + cropCorners.bl.y) / 4;
@@ -1365,7 +1648,8 @@
         bl: inPt(cropCorners.bl)
       };
       drawCropCanvas();
-      showToast('Sudut dipangkas ke dalam 3.5%');
+      updateCropStatusText();
+      showToast('Sudut dipangkas ke dalam ' + (amount * 100).toFixed(1) + '%');
     }
 
     function rotateCropImage(degree) {
@@ -1394,6 +1678,7 @@
           hideProcessing();
           setupCropCanvas();
           drawCropCanvas();
+          updateCropStatusText();
         };
         newImg.src = rotated.toDataURL('image/jpeg', 0.95);
       }, 50);
@@ -1668,6 +1953,7 @@
 
       lastPointerImgPt = currentImgPt;
       drawCropCanvas();
+      updateCropStatusText();
       updateLoupe(e.clientX, e.clientY);
     }
 
@@ -1840,6 +2126,17 @@
 
       let outW = Math.round(Math.max(topW, botW));
       let outH = Math.round(Math.max(leftH, rightH));
+
+      // Auto Document Aspect Ratio Rectification (Standar Kertas A4: 1 : 1.4142)
+      // Jika sudut terdeteksi membentuk rasio dokumen (1.22 s/d 1.62), kalibrasikan ke A4 murni
+      const currentRatio = (outW > outH) ? (outW / outH) : (outH / outW);
+      if (currentRatio >= 1.22 && currentRatio <= 1.62) {
+        if (outH >= outW) {
+          outH = Math.round(outW * 1.4142);
+        } else {
+          outW = Math.round(outH * 1.4142);
+        }
+      }
 
       // Limit max resolution for performance and sharpness (max 2200px)
       const maxDim = 2200;

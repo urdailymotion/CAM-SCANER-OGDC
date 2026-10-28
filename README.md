@@ -8,6 +8,14 @@ Aplikasi Web Scanner Dokumen Digital berstandar **CamScanner** yang terintegrasi
 
 ## 🌟 Fitur Utama
 
+- **Auto-Detect Ukuran Kertas Dokumen (AI Vision & Pure Canvas Engine v5.4)**:
+  - **Deteksi Sudut Fisik Otomatis**: Saat mengambil foto atau memilih berkas, aplikasi langsung mendeteksi 4 sudut fisik lembaran kertas dan mengunci batas dokumen.
+  - **Scoring Geometris Cerdas**: Membedakan lembaran kertas dari permukaan meja, bayangan, atau pinggiran layar dengan kalkulasi rasio aspek dokumen (A4 / F4 / Kwitansi).
+  - **Dual-Engine (OpenCV + Pure Canvas)**: Didukung multi-pass Canny/Adaptive OpenCV dan fallback instan Sobel Gradient 4-Line Intersection (100% offline tanpa perlu koneksi internet).
+  - **Tombol Satu Sentuhan "Pas A4"**: Tombol cepat untuk langsung mengunci proporsi standar internasional kertas A4 (1 : 1.414) di tengah foto.
+  - **Indikator Ukuran Kertas Real-time**: Menampilkan label ukuran terdeteksi (Kertas A4 / F4 Folio / Rasio Bebas) di bagian atas layar sesuaikan sudut.
+  - **Rektifikasi Perspektif Proporsional**: Meluruskan foto miring menjadi dokumen tegak dengan rasio standar dokumen cetak sehingga tidak terdistorsi di lembar PDF.
+
 - **PWA (Progressive Web App) Installable**:
   - Tombol **"Pasang Aplikasi"** langsung di bilah navigasi atas (bebas halangan navigasi bawah).
   - Berjalan dalam mode *standalone* layar penuh tanpa bilah URL browser, persis seperti aplikasi native Android/iOS.
